@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
           tag: 'meta', injectTo: 'head-prepend',
           attrs: {
             'http-equiv': 'Content-Security-Policy',
-            content: `default-src 'self'; connect-src ${connectPolicy}; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'self'`,
+            content: `default-src 'self'; script-src 'self'; connect-src ${connectPolicy}; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'`,
           },
         }];
       },

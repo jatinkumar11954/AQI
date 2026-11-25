@@ -26,7 +26,7 @@ if (dev) {
   const app = new Hono();
   app.use('*', secureHeaders({ crossOriginEmbedderPolicy: false }));
   app.use('*', async (context, next) => {
-    context.header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    context.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     await next();
   });
   app.use('/assets/*', async (context, next) => {

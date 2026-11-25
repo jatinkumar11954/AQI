@@ -77,6 +77,12 @@ node scripts/smoke.mjs  # Live-provider smoke against a running local production
 
 - **GitHub Pages**. The [workflow](.github/workflows/pages.yml) verifies and deploys `dist/pages` on pushes to `main`. Select **GitHub Actions** as the Pages publishing source. `npm run build:pages` produces the keyless site with relative asset links. It fetches the public forecast, weather, and CPCB relay directly and uses local rules for Q&A.
 - **Optional Pages API**. Host the Node or Worker backend separately over HTTPS. Set `SAANS_PUBLIC_ORIGIN` on that backend to the Pages origin such as `https://username.github.io`. Set the GitHub repository Actions variable `SAANS_API_BASE_URL` to the backend's HTTPS origin and rerun the workflow. Put API keys only in that backend's secret store. GitHub Pages serves static assets. [GitHub Pages documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
+- **GitHub Pages (Static SPA + Direct Public Feeds)**:
+  Automated via [.github/workflows/pages.yml](.github/workflows/pages.yml) on push to `main`:
+  ```bash
+  npm run build:pages
+  ```
+  Outputs to `dist/pages` (`vite build --mode pages`), fetching public Open-Meteo and CPCB relay feeds directly in the browser with client-side deterministic rules in `Ask SaansAI` (or via an optional HTTPS backend set in `SAANS_API_BASE_URL`).
 - **Node.js Production**:
   ```bash
   npm run build

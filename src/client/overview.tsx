@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { Activity, ArrowDown, ArrowRight, ArrowUp, CalendarDays, ChevronRight, Clock3, Droplet, House, MapPin, RadioTower, ShieldCheck, Sparkles, Thermometer, Wind } from 'lucide-react';
 import { HOUR, type AirPoint, type City, type Environment, type Profile, type Reading } from '../shared/model';
 import { dailyActions, findWindows, formatDate, formatTime, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
@@ -24,8 +24,7 @@ function Hero({ env, city, now, loading }: { env: Environment; city: City; now: 
   const value = current?.aqi ?? last?.aqi ?? null;
   const isCurrent = current?.aqi != null;
   const category = risk(value);
-  const heroStyle = { '--hero-bg': `url("${import.meta.env.BASE_URL}delhi-skyline.jpg")` } as CSSProperties;
-  return <section className="hero" style={heroStyle} aria-labelledby="hero-title">
+  return <section className="hero" aria-labelledby="hero-title">
     <div className="hero-top"><h2 id="hero-title" className="eyebrow"><MapPin size={15} /> {city.name.toUpperCase()}, INDIA</h2>
       <span className="feed-label"><span />{loading ? 'Updating model' : isCurrent ? 'Current model' : value != null ? 'Earlier model' : 'Feed unavailable'}</span>
     </div>
@@ -51,7 +50,7 @@ export function CleanerWindow({ env, now, profile, loading = false }: Omit<Share
       <strong>{loading ? 'Checking forecast…' : usable ? `${formatTime(usable.start)} – ${formatTime(usable.end)}` : 'No suitable window'}</strong>
       <p>{usable ? `${formatDate(usable.start)} · Peak modeled US AQI ${usable.peak}. Recheck before leaving.`
         : lower ? `The lowest peak for your schedule is ${lower.peak} US AQI on ${formatDate(lower.start)} at ${formatTime(lower.start)}. Conditions still call for caution.`
-        : 'A fresh forecast and two eligible hours are needed to suggest a time.'}</p>
+          : 'A fresh forecast and two eligible hours are needed to suggest a time.'}</p>
     </div>
     <a href="#planner" className="text-link">Open your daily plan <ArrowRight size={16} /></a>
   </section>;
@@ -75,7 +74,7 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
   const units = metric === 'aqi' ? '' : ' µg/m³';
   const detail = (point: AirPoint) => `${format(point[metric], 1)}${point[metric] == null ? '' : units}`;
   return <section className="card forecast-card">
-    <CardTitle icon={<Activity size={20}/>} title="Hourly outlook" sub="CAMS forecast · Local time (IST)" right={
+    <CardTitle icon={<Activity size={20} />} title="Hourly outlook" sub="CAMS forecast · Local time (IST)" right={
       <div className="segmented" aria-label="Forecast range">
         {[24, 48].map(hours => <button key={hours} aria-pressed={duration === hours} onClick={() => setDuration(hours)}>{hours}h</button>)}
       </div>} />
@@ -85,7 +84,7 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
         <label className="inline-label">Metric <select aria-label="Forecast metric" value={metric} onChange={event => setMetric(event.target.value as typeof metric)}>
           {measurements.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
         </select></label>
-        {change != null && <span className="trend">{change < 0 ? <ArrowDown size={15}/> : change > 0 ? <ArrowUp size={15}/> : null}
+        {change != null && <span className="trend">{change < 0 ? <ArrowDown size={15} /> : change > 0 ? <ArrowUp size={15} /> : null}
           {change === 0 ? 'No net change' : `${Math.abs(change)}${units} ${change > 0 ? 'higher' : 'lower'} by last hour`}</span>}
       </div>
       <figure className="chart" aria-label={shown.label + ' hourly bar chart'}>
@@ -128,14 +127,14 @@ function StationPanel({ env, now }: { env: Environment; now: number }) {
     ? <span><strong>{format(reading.value, 1)} µg/m³</strong><small>{dateTime(reading.time)}{now - reading.time > 3 * HOUR ? ' · Older reading' : ''}</small></span>
     : <span>Unavailable</span>;
   return <section className="card">
-    <CardTitle icon={<RadioTower size={20}/>} title="Observed station data" sub="Separate from the CAMS model" />
+    <CardTitle icon={<RadioTower size={20} />} title="Observed station data" sub="Separate from the CAMS model" />
     <p className="card-intro">{labels[stationStatus]}</p>
-    {station && <><p><strong>{station.name}</strong> · {format(station.distance, 1)} km from city point<br/><small>{station.owner} · via {station.provider}</small></p>
+    {station && <><p><strong>{station.name}</strong> · {format(station.distance, 1)} km from city point<br /><small>{station.owner} · via {station.provider}</small></p>
       {station.kind === 'openaq' ? <>
         <dl className="readings"><div><dt>PM2.5</dt><dd>{showReading(station.pm25)}</dd></div><div><dt>PM10</dt><dd>{showReading(station.pm10)}</dd></div></dl>
-        <a className="source-link" href={`https://explore.openaq.org/locations/${station.id}`} target="_blank" rel="noreferrer">Open station <ArrowRight size={14}/></a>
+        <a className="source-link" href={`https://explore.openaq.org/locations/${station.id}`} target="_blank" rel="noreferrer">Open station <ArrowRight size={14} /></a>
       </> : <>
-        <p className="card-intro"><strong>India-scale station AQI {format(station.aqi)}</strong> · {dateTime(station.time)}<br/><small>Calculated by the relay from CPCB station sub-indices.</small></p>
+        <p className="card-intro"><strong>India-scale station AQI {format(station.aqi)}</strong> · {dateTime(station.time)}<br /><small>Calculated by the relay from CPCB station sub-indices.</small></p>
         <dl className="readings"><div><dt>PM2.5 sub-index</dt><dd><strong>{format(station.pm25Index)}</strong></dd></div><div><dt>PM10 sub-index</dt><dd><strong>{format(station.pm10Index)}</strong></dd></div></dl>
         <SourceLink id="relay" />
       </>}
@@ -156,18 +155,18 @@ export function AirOverview({ env, now, profile, hindi, city, loading }: Shared 
       <div className="mini-actions">{[actions[0], actions[1], actions[3]].map((action, index) => {
         const Icon = [CalendarDays, Wind, House][index];
         return <a key={action.id} href={index === 2 ? '#indoor' : '#planner'} className="mini-action">
-          <span><Icon size={17}/></span><div><strong>{action.title}</strong><p>{hindi && action.hindi ? <span lang="hi">{action.hindi}</span> : action.body}</p></div><ChevronRight size={15} />
+          <span><Icon size={17} /></span><div><strong>{action.title}</strong><p>{hindi && action.hindi ? <span lang="hi">{action.hindi}</span> : action.body}</p></div><ChevronRight size={15} />
         </a>;
       })}</div>
-      <a href="#assistant" className="text-link"><Sparkles size={16}/> Ask about your day <ArrowRight size={16} /></a>
+      <a href="#assistant" className="text-link"><Sparkles size={16} /> Ask about your day <ArrowRight size={16} /></a>
     </section>
     <StationPanel env={env} now={now} />
     <section className="card weather-card">
-      <CardTitle icon={<Wind size={20}/>} title="Local weather" sub={env.weather ? 'Open-Meteo model · ' + dateTime(env.weather.time) : 'Current weather estimate unavailable'} />
+      <CardTitle icon={<Wind size={20} />} title="Local weather" sub={env.weather ? 'Open-Meteo model · ' + dateTime(env.weather.time) : 'Current weather estimate unavailable'} />
       <div className="weather-grid">
-        <div><Thermometer size={19}/><span>Temperature</span><strong>{format(env.weather?.temperature, 1)} °C</strong></div>
-        <div><Droplet size={19}/><span>Humidity</span><strong>{format(env.weather?.humidity)}%</strong></div>
-        <div><Wind size={19}/><span>Wind</span><strong>{format(env.weather?.wind, 1)} km/h</strong></div>
+        <div><Thermometer size={19} /><span>Temperature</span><strong>{format(env.weather?.temperature, 1)} °C</strong></div>
+        <div><Droplet size={19} /><span>Humidity</span><strong>{format(env.weather?.humidity)}%</strong></div>
+        <div><Wind size={19} /><span>Wind</span><strong>{format(env.weather?.wind, 1)} km/h</strong></div>
       </div>
       <SourceLink id="weather" />
     </section>

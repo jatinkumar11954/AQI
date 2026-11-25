@@ -9,6 +9,7 @@ import { dateKey, formatDate } from '../shared/planner';
 import { readEnvironment } from './data';
 import { AirOverview } from './overview';
 import { Assistant, Improvement, Indoor, Planner } from './sections';
+import { fetchEnvironmentStatic } from './static-api';
 import { LocationDialog, SourceLink, useStored } from './ui';
 
 const pages = [

@@ -31,6 +31,10 @@ No critical defect was confirmed in the tested scope. A release change moved sta
 | Dependency and secret checks | `npm audit --json` reported no advisories in the resolved lockfile at check time. A pattern scan of project files returned no credential matches. Type, request and package checks are scoped evidence, not a penetration test. |
 | Build size | Vite reported approximately 112 kB gzip for JavaScript and 10 kB for CSS. The local uncompressed Page Resource Timing transfer total was approximately 533 kB for the live Today view. No load-test or Lighthouse score was used. |
 
+## GitHub Pages release verification
+
+The GitHub Actions build and deploy jobs completed successfully on 26 November 2026 IST. Anonymous desktop and Pixel 7 browser tests returned HTTP 200, displayed fresh CAMS forecasts and CPCB station data, switched from Delhi to Pune through search, and returned a source-grounded Rules answer. Both tested layouts matched their viewports and axe returned zero violations on the public Today view. [Verified deployment](https://jatinkumar11954.github.io/AQI/) · [Successful workflow run](https://github.com/jatinkumar11954/AQI/actions/runs/45699779316)
+
 ## Remaining limitations
 
 - **Live Gemini and OpenAQ authentication remain unverified.** No real API keys were available. Gemini success, malformed results, quota and failure paths were tested with fixtures. In live checks the assistant explicitly used Rules mode, and CPCB data came through the public relay. Gemini is a topic router, with constrained contextual responses rather than open-ended medical or lifestyle advice.
