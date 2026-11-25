@@ -10,7 +10,6 @@
     "dev": "node --env-file-if-exists=.env --import tsx src/server/index.ts --dev",
     "build": "vite build && esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.mjs && node scripts/build-worker.mjs",
     "build:pages": "vite build --mode pages",
-    "build:pages": "GITHUB_PAGES=true VITE_STATIC_SITE=true vite build",
     "start": "node --env-file-if-exists=.env dist/server.mjs",
     "check": "tsc --noEmit",
     "test": "vitest run",

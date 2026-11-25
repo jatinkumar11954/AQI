@@ -184,3 +184,37 @@ it('allows the configured Pages origin and rejects cross-origin requests from ot
   expect(response.status).toBe(200);
   expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
 });
+
+it('accepts the local Vite origin only when explicitly configured by the dev server', async () => {
+  const origin = 'http://127.0.0.1:4173';
+  const fetcher = async (target: URL) => baseFeed(target);
+  const url = 'http://127.0.0.1:4174/api/ask';
+  const dev = createApp({ fetcher, clock: () => NOW, developmentOrigin: origin });
+  const production = createApp({ fetcher, clock: () => NOW });
+  expect((await dev.request(url, post(question, { origin }))).status).toBe(200);
+  expect((await dev.request(url, post(question, { origin: 'http://127.0.0.1:4200' }))).status).toBe(403);
+  expect((await production.request(url, post(question, { origin }))).status).toBe(403);
+});
+
+it('prefers an active OpenAQ monitor over a closer inactive record', async () => {
+  const latest = new Date((NOW - HOUR) * 1000).toISOString();
+  const old = new Date((NOW - 365 * 24 * HOUR) * 1000).toISOString();
+  const template = {
+    name: 'Test monitor', provider: { name: 'Test' },
+    sensors: [{ id: 34, parameter: { name: 'pm25', units: 'µg/m³' } }],
+  };
+  const fetcher = vi.fn(async (target: URL) => {
+    if (target.hostname !== 'api.openaq.org') return baseFeed(target);
+    if (target.pathname.endsWith('/latest')) {
+      expect(target.pathname).toBe('/v3/locations/2/latest');
+      return json({ results: [{ sensorsId: 34, value: 42.5, datetime: { utc: latest } }] });
+    }
+    return json({ results: [
+      { ...template, id: 1, distance: 800, datetimeLast: { utc: old } },
+      { ...template, id: 2, distance: 1800, datetimeLast: { utc: latest } },
+    ] });
+  });
+  const app = createApp({ fetcher, clock: () => NOW });
+  const response = await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' });
+  expect(await response.json()).toMatchObject({ stationStatus: 'fresh', station: { kind: 'openaq', id: 2, pm25: { value: 42.5 } } });
+});

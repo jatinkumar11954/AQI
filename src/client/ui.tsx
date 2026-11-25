@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { ArrowUpRight, MapPin, Search, X } from 'lucide-react';
 import { searchCities } from './data';
 import { CITIES, SOURCES, type City, type SourceId } from '../shared/model';
-import { searchPlacesStatic } from './static-api';
 
 export function useStored<T>(key: string, initial: T, schema?: { parse(value: unknown): T }) {
   const [value, setValue] = useState<T>(() => {

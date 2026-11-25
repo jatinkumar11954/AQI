@@ -586,7 +586,7 @@ select {
   grid-column: span 4;
 }
 
-.dashboard > .card:nth-child(5),
+.dashboard>.card:nth-child(5),
 .weather-card {
   grid-column: span 6;
 }
@@ -898,7 +898,7 @@ select {
   border-color: var(--forest);
 }
 
-.mini-action > span:first-child {
+.mini-action>span:first-child {
   width: 32px;
   height: 32px;
   border-radius: 9px;
@@ -1195,7 +1195,7 @@ select {
   gap: 0.65rem;
 }
 
-.compare-bars > div {
+.compare-bars>div {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr) 72px;
   align-items: center;
@@ -1287,7 +1287,7 @@ select {
   gap: 0.75rem;
 }
 
-.guidance > div {
+.guidance>div {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -1312,7 +1312,7 @@ select {
   color: var(--muted);
 }
 
-.footer > div {
+.footer>div {
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -1385,7 +1385,7 @@ select {
   .window-card,
   .forecast-card,
   .actions-card,
-  .dashboard > .card:nth-child(5),
+  .dashboard>.card:nth-child(5),
   .weather-card {
     grid-column: span 12;
   }
@@ -1415,12 +1415,32 @@ select {
 }
 
 @media (max-width: 600px) {
-  .breadcrumb { display: none; }
-  .topbar { justify-content: flex-end; position: static; }
-  .top-actions { min-width: 0; }
-  .location > span { overflow: hidden; text-overflow: ellipsis; }
-  .location { min-width: 0; }
-  .dashboard > *, .section-grid > * { min-width: 0; }
+  .breadcrumb {
+    display: none;
+  }
+
+  .topbar {
+    justify-content: flex-end;
+    position: static;
+  }
+
+  .top-actions {
+    min-width: 0;
+  }
+
+  .location>span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .location {
+    min-width: 0;
+  }
+
+  .dashboard>*,
+  .section-grid>* {
+    min-width: 0;
+  }
 
   .hero-footer,
   .weather-grid,

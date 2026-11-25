@@ -31,13 +31,16 @@ export function parseAir(input: unknown, now: number) {
   return { current: snapshot, hourly: hourlyRows, fetchedAt: now };
 }
 
+const OPENAQ_LOCATION_LIMIT = 80;
+const OBSERVATION_MAX_AGE = 3 * HOUR;
 const locations = z.object({
   results: z.array(z.object({
     id: z.number().int().positive(), name: z.string(), distance: z.number().nonnegative().nullable().optional(),
     owner: z.object({ name: z.string() }).nullable().optional(),
     provider: z.object({ name: z.string() }),
+    datetimeLast: z.object({ utc: z.iso.datetime({ offset: true }) }).nullish(),
     sensors: z.array(z.object({ id: z.number().int(), parameter: z.object({ name: z.string(), units: z.string() }) })),
-  })).max(12),
+  })).max(OPENAQ_LOCATION_LIMIT),
 });
 const latest = z.object({
   results: z.array(z.object({ sensorsId: z.number(), value: z.number(), datetime: z.object({ utc: z.iso.datetime({ offset: true }) }) })).max(100),
@@ -64,12 +67,18 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
     if (!providers('openaq', 24) || !hourlyQuota('openaq', 900)) throw new UpstreamError(429);
     const headers = { 'X-API-Key': apiKey };
     const response = await request(url(stationURL, {
-      coordinates: lat + ',' + lon, radius: 25000, limit: 10, iso: 'IN',
+      coordinates: lat + ',' + lon, radius: 25000, limit: OPENAQ_LOCATION_LIMIT, iso: 'IN',
       monitor: 'true', mobile: 'false',
     }), { headers }, 0);
-    const known = locations.parse(response).results.filter(location =>
-      location.distance != null && location.distance <= 25000 && location.sensors.some(sensor => hasPm(sensor.parameter))
-    ).sort((a, b) => a.distance! - b.distance!);
+    const lookupTime = clock();
+    const known = locations.parse(response).results.filter(location => {
+      if (location.distance == null || location.distance > 25000 || !location.sensors.some(sensor => hasPm(sensor.parameter))) return false;
+      // Older monitor records can be closer than the current station for the same neighbourhood.
+      if (location.datetimeLast === undefined) return true;
+      if (location.datetimeLast === null) return false;
+      const last = Date.parse(location.datetimeLast.utc) / 1000;
+      return last >= lookupTime - OBSERVATION_MAX_AGE && last <= lookupTime + 300;
+    }).sort((a, b) => a.distance! - b.distance!);
     const nearest = known[0];
     if (!nearest) return null;
     const payload = latest.parse(await request(url(stationURL + '/' + nearest.id + '/latest', { limit: 100 }), { headers }, 0));

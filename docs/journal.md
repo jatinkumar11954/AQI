@@ -25,5 +25,3 @@
 
 - Switched to GitHub Actions for frontend publication. Shared provider parsing, bounded caching and timeouts between the Node API and the keyless Pages build.
 - Verified that each public data provider accepts GitHub Pages cross-origin reads. Added an allowlisted HTTPS backend option for Gemini and OpenAQ. The keyless Pages assistant applies only local rules and never sends questions or household settings to a provider.
-- Published through GitHub Actions. An anonymous smoke check of the Pages site confirmed live station data, forecast, city search and Rules Q&A in desktop and Pixel 7 Chromium. Observed no horizontal overflow or automated accessibility violations on the public Today view.
-- Generated the decorative skyline with the built-in image tool and exported a compressed JPEG to `public/delhi-skyline.jpg`. The prompt requested an editorial screen-print view of winter Delhi, India Gate on the lower right, muted eucalyptus on forest green, and no lettering or interface elements.

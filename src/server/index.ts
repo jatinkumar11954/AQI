@@ -5,8 +5,8 @@ import { secureHeaders } from 'hono/secure-headers';
 import { createApp } from './app';
 
 const port = Number(process.env.PORT || '4173');
-const api = createApp();
 const dev = process.argv.includes('--dev');
+const api = createApp({ developmentOrigin: dev ? 'http://127.0.0.1:' + port : undefined });
 const keys = {
   OPENAQ_API_KEY: process.env.OPENAQ_API_KEY,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,

@@ -20,8 +20,8 @@ const querySchema = z.object({ lat: decimal, lon: decimal }).pipe(pointSchema);
 const issue = (code: string, message: string) => ({ error: { code, message } });
 
 export function createApp({
-  fetcher = (target, init) => globalThis.fetch(target, init), clock = () => Math.floor(Date.now() / 1000),
-}: { fetcher?: Fetcher; clock?: () => number } = {}) {
+  fetcher = (target, init) => globalThis.fetch(target, init), clock = () => Math.floor(Date.now() / 1000), developmentOrigin,
+}: { fetcher?: Fetcher; clock?: () => number; developmentOrigin?: string } = {}) {
   const environment = createEnvironment(fetcher, clock);
   const answer = createAssistant(fetcher, clock);
   const limit = createLimiter(clock);
@@ -70,7 +70,10 @@ export function createApp({
     maxSize: 4096, onError: context => context.json(issue('BODY_TOO_LARGE', 'The question or profile is too large.'), 413),
   }), async context => {
     const origin = context.req.header('origin');
-    if (origin && origin !== new URL(context.req.url).origin && origin !== httpsOrigin(context.env?.SAANS_PUBLIC_ORIGIN)) return context.json(issue('FORBIDDEN_ORIGIN', 'Use the assistant from this site.'), 403);
+    if (origin && origin !== new URL(context.req.url).origin && origin !== developmentOrigin
+      && origin !== httpsOrigin(context.env?.SAANS_PUBLIC_ORIGIN)) {
+      return context.json(issue('FORBIDDEN_ORIGIN', 'Use the assistant from this site.'), 403);
+    }
     if (context.req.header('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
       return context.json(issue('CONTENT_TYPE', 'Send a JSON request.'), 415);
     }

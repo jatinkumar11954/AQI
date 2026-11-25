@@ -6,7 +6,6 @@ import { calculateImpact, DEFAULT_SCENARIO, outdoorProxy, PETROL_FACTOR, scenari
 import { type Answer } from '../shared/assistant';
 import { askSaansAI } from './data';
 import { CleanerWindow } from './overview';
-import { askAssistantStatic } from './static-api';
 import { CardTitle, SourceLink, useStored } from './ui';
 
 type Shared = { env: Environment; now: number; profile: Profile; hindi: boolean };
