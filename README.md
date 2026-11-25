@@ -11,20 +11,20 @@ SaansAI helps Indian households decide what to do on polluted days. Start with [
 
 ```mermaid
 flowchart LR
-  USER[Household] --> PAGES[GitHub Pages · React and TypeScript]
-  PAGES --> RULES[Planner, checklist and simulator]
-  PAGES -->|HTTPS · allowed Pages origin| API[Render · Hono API]
-  API --> CACHE[Bounded caches and request limits]
+  USER[Household] --> CLIENT[Vercel CDN · React and TypeScript]
+  CLIENT --> RULES[Planner, checklist and simulator]
+  CLIENT -->|Same-origin HTTPS · /api/*| API[Vercel bom1 · Hono Serverless]
+  API --> CACHE[Per-instance caches and rate limits]
   CACHE --> CAMS[Open-Meteo · CAMS, weather and geocoding]
   CACHE --> RELAY[India API · CPCB station indices]
   CACHE --> OPENAQ[OpenAQ v3 · measured concentrations]
   API -->|Question and selected context| GEMINI[Gemini · approved topic IDs]
   GEMINI --> CATALOG[Application · reviewed guidance and citations]
   API --> CATALOG
-  CATALOG --> PAGES
+  CATALOG --> CLIENT
 ```
 
-The server validates requests with Zod, caps JSON bodies at 4 KiB, and sets a restrictive content policy. Upstream responses are size-limited and requests use bounded timeouts. API keys stay in the Render secret store or the ignored local environment file. Household settings and the checklist are stored in the browser. Read [the API contract](docs/api.md) and [data and privacy methodology](docs/methodology.md).
+The server validates requests with Zod, caps JSON bodies at 4 KiB, and sets a restrictive content policy. Upstream responses are size-limited and requests use bounded timeouts. API keys stay in Vercel Environment Variables (encrypted secrets) or the ignored local `.env` file. Household settings and the checklist are stored in the browser. Read [the API contract](docs/api.md) and [data and privacy methodology](docs/methodology.md).
 
 ## Getting Started
 
@@ -50,7 +50,7 @@ See [.env.example](.env.example):
 - `GEMINI_API_KEY` (optional, server-only)
 - `GEMINI_MODEL` (optional, defaults to [`gemini-3.5-flash-lite`](https://aistudio.google.com/docs/models/gemini-3.5-flash-lite))
 - `GEMINI_DAILY_LIMIT` (optional, defaults to 100 attempted classifications per process in a 24-hour window)
-- `SAANS_PUBLIC_ORIGIN` (optional, exact HTTPS GitHub Pages origin for cross-origin API access)
+- `SAANS_PUBLIC_ORIGIN` (optional, exact HTTPS origin only needed for cross-origin API access; omit for same-origin Vercel)
 
 ## Verification
 

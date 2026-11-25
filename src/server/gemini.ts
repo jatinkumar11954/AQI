@@ -49,14 +49,16 @@ export function createAssistant(fetcher: Fetcher, clock: () => number) {
     if (!modelPattern.test(model)) return fallback('unavailable');
     const dailyLimit = z.coerce.number().int().min(1).max(2000).safeParse(keys.GEMINI_DAILY_LIMIT).data ?? 100;
     const modelled = modelNow(env, now);
-    const input = JSON.stringify({
-      question, language, sensitiveHousehold: isSensitive(profile), activity: profile.activity,
+    const contextFacts = {
+      language, sensitiveHousehold: isSensitive(profile), activity: profile.activity,
       commute: profile.commute, outdoorWork: profile.work === 'outdoor',
       usAqiModel: modelled?.aqi ?? null, indiaStationAqi: freshIndiaStation(env, now)?.aqi ?? null,
       stationCaution: nearbyParticleCaution(env, now), activityWindowEligible: Boolean(findWindows(env, profile, now).usable),
-    });
+    };
+    const input = JSON.stringify({ question, ...contextFacts });
+    const cacheInput = JSON.stringify({ question: question.trim().replace(/\s+/g, ' ').toLowerCase(), ...contextFacts });
     try {
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(model + '\n' + input));
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(model + '\n' + cacheInput));
       const cacheKey = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
       const { value } = await classifications(cacheKey, async () => {
         if (clock() < cooldown || inFlight >= 3 || !minute('gemini', 8) || !day('gemini', dailyLimit)) throw new BudgetError();

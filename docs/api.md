@@ -1,11 +1,11 @@
 # SaansAI API
 
-Production API origin is [Render](https://aqi-0xk3.onrender.com). The public frontend makes credential-free HTTPS requests. The API allows browser access from the configured exact Pages origin. The Render service also recognizes its own documented public URL for same-site assistant requests behind TLS termination. Assistant requests require JSON. Responses use `Cache-Control: no-store`. Internal caches reuse provider results.
+Production deployment is same-origin on [Vercel (`aqi-tau.vercel.app`)](https://aqi-tau.vercel.app) in the Mumbai (`bom1`) region. The frontend makes same-origin credential-free HTTPS requests to `/api/*`. Cross-origin requests are rejected unless `SAANS_PUBLIC_ORIGIN` is explicitly configured. Assistant requests require JSON (`4096` byte max). Responses use `Cache-Control: no-store`. Internal per-instance caches reuse provider results.
 
 | Method and route | Request | Success | Common failures |
 |---|---|---|---|
 | `GET /api/health` | None | `{"status":"ok"}` | Hosting or network failure |
-| `GET /api/ready` | None | `{"status":"ready"}` | `503 {"status":"not_ready"}` for an invalid configured Pages origin |
+| `GET /api/ready` | None | `{"status":"ready"}` | `503 {"status":"not_ready"}` for an invalid `SAANS_PUBLIC_ORIGIN` configuration |
 | `GET /api/places?q=Pune` | Indian city or neighbourhood, 2–64 characters | `{places: City[]}`, possibly empty | `400 INVALID_SEARCH`, `429 RATE_LIMIT` or `UPSTREAM_LIMIT`, `503 UPSTREAM_UNAVAILABLE` |
 | `GET /api/environment?lat=28.61&lon=77.21` | Numeric coordinates within the app’s India bounds | `Environment` with individual feed states, including partial results | `400 INVALID_LOCATION`, `429 RATE_LIMIT` |
 | `POST /api/ask` | JSON question, city coordinates, household settings and optional `language` | `Answer` with a mode, status, text and reviewed source IDs | `400 INVALID_QUESTION`, `403 FORBIDDEN_ORIGIN`, `413 BODY_TOO_LARGE`, `415 CONTENT_TYPE`, `429 RATE_LIMIT` |

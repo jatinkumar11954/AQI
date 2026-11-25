@@ -128,6 +128,9 @@ it('deduplicates simultaneous questions and uses the daily budget for distinct p
   const ask = () => assistant('How can I plan my commute and air my room?', DEFAULT_PROFILE, context, 'en', keys);
   const answers = await Promise.all(Array.from({ length: 12 }, ask));
   expect(fetcher).toHaveBeenCalledTimes(1);
+  const normalizedHit = await assistant('how can i plan my commute   and air my room?', DEFAULT_PROFILE, context, 'en', keys);
+  expect(normalizedHit).toMatchObject({ mode: 'gemini', sources: ['activity', 'clean'] });
+  expect(fetcher).toHaveBeenCalledTimes(1);
   for (const answer of answers) {
     expect(answer).toMatchObject({ mode: 'gemini', sources: ['activity', 'clean'] });
     expect(answer.followUp).toMatch(/brief opening/);
