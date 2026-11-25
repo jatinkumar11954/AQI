@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+const isLive = Boolean(process.env.SAANS_TEST_URL);
 const PAGES = [
   { hash: '#today', heading: 'Your air plan today' },
   { hash: '#planner', heading: 'Plan your day' },
@@ -13,10 +14,15 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
   test('navigates all views, searches cities, updates planner, runs impact and assistant', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Your air plan today' })).toBeVisible();
-    await expect(page.locator('.readout strong')).toHaveText('88');
+    await expect(page.locator('.readout strong')).toHaveText(isLive ? /^\d+$/ : '88');
 
-    // Open city picker and search Pune
+    // Open city picker, verify empty search does not prematurely flip on edit, then search Pune
     await page.getByRole('button', { name: /New Delhi, India/i }).click();
+    await page.getByLabel('City or neighbourhood').fill('zzzzqqqq99');
+    await page.getByRole('button', { name: /^Search$/ }).click();
+    await expect(page.locator('dialog [aria-live="polite"]')).toContainText('No matches');
+    await page.getByLabel('City or neighbourhood').fill('110001');
+    await expect(page.locator('dialog [aria-live="polite"]')).toContainText('No matches');
     await page.getByLabel('City or neighbourhood').fill('Pune');
     await page.getByRole('button', { name: /^Search$/ }).click();
     await page.getByRole('button', { name: /Pune/i }).click();
@@ -48,7 +54,9 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     // Ask SaansAI quick prompt
     await page.getByRole('navigation').getByRole('link', { name: 'Ask SaansAI' }).click();
     await page.getByRole('button', { name: 'Should I open the windows?' }).click();
-    await expect(page.getByRole('log', { name: 'Assistant responses' })).toContainText('Current modeled US AQI 88');
+    await expect(page.getByRole('log', { name: 'Assistant responses' })).toContainText(
+      isLive ? /Current modeled US AQI \d+/ : 'Current modeled US AQI 88',
+    );
   });
 
   test('passes axe WCAG accessibility checks across desktop and mobile viewports', async ({ page }) => {

@@ -13,10 +13,11 @@ const mockFetcher: typeof fetch = async (input) => {
   const current = now();
   const baseHour = Math.floor(current / HOUR) * HOUR;
   if (href.includes('geocoding-api.open-meteo.com')) {
+    const query = new URL(href).searchParams.get('name')?.toLowerCase() ?? '';
     return new Response(JSON.stringify({
-      results: [
-        { name: 'Pune', admin1: 'Maharashtra', country_code: 'IN', latitude: 18.52, longitude: 73.86 },
-      ],
+      results: query.includes('pune')
+        ? [{ name: 'Pune', admin1: 'Maharashtra', country_code: 'IN', latitude: 18.52, longitude: 73.86 }]
+        : [],
     }), { status: 200 });
   }
   if (href.includes('air-quality-api.open-meteo.com')) {

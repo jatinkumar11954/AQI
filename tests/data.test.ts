@@ -84,4 +84,11 @@ describe('Pages network recovery', () => {
     expect(answer).toMatchObject({ mode: 'rules', status: 'unconfigured', sources: ['clean'] });
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it('rethrows non-transient 400 validation errors on /api/ask', async () => {
+    const fetcher = vi.fn(async () => Response.json({ error: { message: 'Invalid question.' } }, { status: 400 }));
+    const api = await connect(fetcher);
+    await expect(api.askSaansAI('x', location, DEFAULT_PROFILE, 'en', modeled(), new AbortController().signal))
+      .rejects.toThrow('Invalid question.');
+  });
 });

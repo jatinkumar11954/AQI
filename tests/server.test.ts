@@ -197,6 +197,40 @@ describe('HTTP API contract and error boundaries', () => {
       body: JSON.stringify(payload),
     }), { clientAddress: 'valid-run' });
     expect(limited.status).toBe(429);
+
+    const notFound = await app.fetch(new Request('http://localhost/api/unknown'));
+    expect(notFound.status).toBe(404);
+
+    const unready = await app.fetch(new Request('http://localhost/api/ready'), { SAANS_PUBLIC_ORIGIN: 'http://insecure.example' });
+    expect(unready.status).toBe(503);
+
+    const preflightBlocked = await app.fetch(new Request('http://localhost/api/ask', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' },
+    }), { SAANS_PUBLIC_ORIGIN: 'https://trusted.example' });
+    expect(preflightBlocked.status).toBe(403);
+
+    const preflightOk = await app.fetch(new Request('http://localhost/api/ask', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://trusted.example', 'Access-Control-Request-Method': 'POST' },
+    }), { SAANS_PUBLIC_ORIGIN: 'https://trusted.example' });
+    expect(preflightOk.status).toBe(204);
+    expect(preflightOk.headers.get('access-control-allow-origin')).toBe('https://trusted.example');
+  });
+
+  it('maps upstream 429 and unexpected provider errors to 503 with Retry-After on rate limits', async () => {
+    const rateLimitedFetcher = vi.fn(async () => new Response('busy', { status: 429 })) as unknown as typeof fetch;
+    const limitedApp = createApp({ fetcher: rateLimitedFetcher, clock: () => NOW });
+    const limitedRes = await limitedApp.fetch(new Request('http://localhost/api/places?q=Pune'));
+    expect(limitedRes.status).toBe(503);
+    expect(limitedRes.headers.get('retry-after')).toBe('60');
+    expect(await limitedRes.json()).toMatchObject({ error: { code: 'UPSTREAM_LIMIT' } });
+
+    const brokenFetcher = vi.fn(async () => new Response('error', { status: 500 })) as unknown as typeof fetch;
+    const brokenApp = createApp({ fetcher: brokenFetcher, clock: () => NOW });
+    const brokenRes = await brokenApp.fetch(new Request('http://localhost/api/places?q=Pune'));
+    expect(brokenRes.status).toBe(503);
+    expect(await brokenRes.json()).toMatchObject({ error: { code: 'UPSTREAM_UNAVAILABLE' } });
   });
 });
 

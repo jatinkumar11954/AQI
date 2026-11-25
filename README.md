@@ -1,6 +1,6 @@
 # SaansAI — Urban Air Quality Assistant
 
-SaansAI helps Indian households decide what to do on polluted days. Start with [today’s action plan](https://jatinkumar11954.github.io/AQI/), select a city and try a sample household. No account or API key is required to use the public application.
+SaansAI helps Indian households decide what to do on polluted days. Start with [today’s action plan](https://aqi-tau.vercel.app/), select a city and try a sample household. No account or API key is required to use the public application.
 
 - **Today and Daily planner** combine modeled US AQI and weather with separately labeled station reports. Set work hours, commute, family needs, activity and budget to get cautious time windows and a daily checklist.
 - **Indoor air** explains source control, ventilation, filtration and low-emission routines across three budget tiers.
@@ -65,23 +65,13 @@ node scripts/smoke.mjs  # Live-provider smoke against a running local production
 
 ## Deployment
 
-The production frontend is on [GitHub Pages](https://jatinkumar11954.github.io/AQI/) and the live API is on [Render](https://aqi-0xk3.onrender.com/api/ready).
+The live same-origin production deployment is on [Vercel (`aqi-tau.vercel.app`)](https://aqi-tau.vercel.app/) in the Mumbai (`bom1`) region (free Hobby plan with Fluid Compute). [vercel.json](vercel.json) and [api/index.ts](api/index.ts) deploy the Vite client (`dist/client`) and Hono API (`/api/*`) on the same HTTPS origin.
 
-1. On GitHub, set Pages publishing to **GitHub Actions**. The [workflow](.github/workflows/pages.yml) verifies each push to `main` and publishes `dist/pages` with relative asset paths.
-2. Set the GitHub Actions repository variable `SAANS_API_BASE_URL` to the Render HTTPS origin. This is a public build setting.
-3. On Render, use `npm ci && npm run build` as the build command and `npm start` as the start command. Set `SAANS_PUBLIC_ORIGIN` to the exact Pages origin, for example `https://jatinkumar11954.github.io`, without a repository path. Set optional API keys in Render’s environment settings. Use `/api/ready` as the health check path.
-4. Run `node scripts/smoke.mjs https://aqi-0xk3.onrender.com` after the release. Run the public UI separately to verify the Pages-to-Render request path.
+1. Run `npx vercel link` and set server-only environment variables (`OPENAQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_DAILY_LIMIT`) in Vercel Project Settings. Do not expose keys with `VITE_*`.
+2. Automated CI-gated deployments run via [the Vercel workflow](.github/workflows/vercel.yml) (`SAANS_VERCEL_DEPLOY=true` with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Roll back immediately via Vercel Dashboard (**Instant Rollback**) or `npx vercel rollback`.
+3. Verify the live instance with `node scripts/smoke.mjs https://aqi-tau.vercel.app` and `SAANS_TEST_URL=https://aqi-tau.vercel.app npm run test:e2e`.
 
-A Pages build without an API origin fetches public feeds directly and uses Rules mode. Free Render instances may need about a minute to wake after being idle. Docker and Cloudflare Worker build targets are also included. [Render free instance limits](https://render.com/docs/free)
-
-### Vercel Same-Origin Alternative (Recommended for Lower Cold-Start Latency)
-
-[vercel.json](vercel.json) and [api/index.ts](api/index.ts) deploy the Vite client (`dist/client`) and Hono API (`/api/*`) on the same HTTPS origin in Vercel’s Mumbai (`bom1`) region under the free Hobby plan (no credit card required, Fluid Compute + Node.js bytecode caching).
-
-1. Import the repository in Vercel (or run `vercel link`) and set server-only environment variables (`OPENAQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_DAILY_LIMIT`) in Vercel Project Settings. Do not expose keys with `VITE_*`.
-2. Vercel builds with `vite build` (`dist/client`) and routes `/api/(.*)` to `api/index.ts`, using `x-vercel-forwarded-for` for per-client rate limiting.
-3. For automated CI-gated GitHub Actions deploys, set repository variable `SAANS_VERCEL_DEPLOY=true` and secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` for [the Vercel workflow](.github/workflows/vercel.yml). Roll back immediately via Vercel Dashboard (**Instant Rollback**) or `vercel rollback`.
-4. Retain the Render service until `node scripts/smoke.mjs <vercel-url>` and browser journeys pass on the Vercel deployment.
+The previous Node server (`npm start` / Docker) and Cloudflare Worker (`dist/worker.mjs`) build targets remain supported.
 
 ## Documentation & PromptWars Artifacts
 

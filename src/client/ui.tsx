@@ -37,13 +37,14 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
   const input = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
   const [results, setResults] = useState<City[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const element = dialog.current;
     if (open && element && !element.open) {
-      setQuery(''); setResults(null); setError(''); setBusy(false);
+      setQuery(''); setSubmittedQuery(''); setResults(null); setError(''); setBusy(false);
       element.showModal();
       input.current?.focus();
     } else if (!open && element?.open) {
@@ -56,11 +57,12 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
   async function search(event: FormEvent) {
     event.preventDefault();
     request.current?.abort();
+    const trimmed = query.trim();
     const controller = new AbortController();
     request.current = controller;
-    setBusy(true); setError(''); setResults(null);
+    setBusy(true); setError(''); setResults(null); setSubmittedQuery(trimmed);
     try {
-      const places = await searchCities(query.trim(), AbortSignal.any([controller.signal, AbortSignal.timeout(environmentBudgetMs)]));
+      const places = await searchCities(trimmed, AbortSignal.any([controller.signal, AbortSignal.timeout(environmentBudgetMs)]));
       if (!controller.signal.aborted) setResults(places);
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error && cause.name !== 'TimeoutError' ? cause.message : 'City search timed out. The suggested cities are still available.');
@@ -77,7 +79,7 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
       <input ref={input} id="city-search" name="city" value={query} onChange={event => setQuery(event.target.value)} maxLength={64} placeholder="e.g. Pune or Connaught Place" required minLength={2} />
       <button className="button primary" disabled={busy || query.trim().length < 2}><Search size={17} />{busy ? 'Searching' : 'Search'}</button>
     </form>
-    <div aria-live="polite">{error || (busy ? 'Searching Indian cities…' : results?.length === 0 ? (/^\d{6}$/.test(query.trim()) ? 'PIN code lookup is unavailable. Search by city or neighbourhood name, or choose a suggested city.' : 'No matches. Check the spelling or choose a suggested city.') : '')}</div>
+    <div aria-live="polite">{error || (busy ? 'Searching Indian cities…' : results?.length === 0 ? (/^\d{6}$/.test(submittedQuery) ? 'PIN code lookup is unavailable. Search by city or neighbourhood name, or choose a suggested city.' : 'No matches. Check the spelling or choose a suggested city.') : '')}</div>
     <p className="eyebrow results-label">{results?.length ? 'SEARCH RESULTS' : 'SUGGESTED CITIES'}</p>
     <div className="place-grid">
       {(results?.length ? results : CITIES).map(place => <button key={place.name + place.lat + place.lon} className="place" onClick={() => choose(place)} aria-pressed={place.lat === city.lat && place.lon === city.lon}>

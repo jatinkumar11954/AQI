@@ -13,10 +13,11 @@ export function risk(aqi: number | null | undefined) {
 const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: TIMEZONE });
 const clock = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: TIMEZONE });
 const hour = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: TIMEZONE });
+const isoDate = new Intl.DateTimeFormat('en-CA', { dateStyle: 'short', timeZone: TIMEZONE });
 export const formatTime = (seconds: number) => clock.format(seconds * 1000);
 export const formatDate = (seconds: number) => date.format(seconds * 1000);
 export const localHour = (seconds: number) => Number(hour.format(seconds * 1000));
-export const dateKey = (seconds: number) => new Intl.DateTimeFormat('en-CA', { dateStyle: 'short', timeZone: TIMEZONE }).format(seconds * 1000);
+export const dateKey = (seconds: number) => isoDate.format(seconds * 1000);
 export const isSensitive = (profile: Profile) => profile.children || profile.seniors || profile.sensitive;
 
 export function freshAir(env: Environment, now: number) {
