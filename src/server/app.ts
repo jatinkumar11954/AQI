@@ -20,11 +20,13 @@ const querySchema = z.object({ lat: decimal, lon: decimal }).pipe(pointSchema);
 const issue = (code: string, message: string) => ({ error: { code, message } });
 
 export function createApp({
-  fetcher = (target, init) => globalThis.fetch(target, init), clock = () => Math.floor(Date.now() / 1000), developmentOrigin,
-}: { fetcher?: Fetcher; clock?: () => number; developmentOrigin?: string } = {}) {
+  fetcher = (target, init) => globalThis.fetch(target, init), clock = () => Math.floor(Date.now() / 1000),
+  developmentOrigin, publicServiceOrigin,
+}: { fetcher?: Fetcher; clock?: () => number; developmentOrigin?: string; publicServiceOrigin?: string } = {}) {
   const environment = createEnvironment(fetcher, clock);
   const answer = createAssistant(fetcher, clock);
   const limit = createLimiter(clock);
+  const serviceOrigin = httpsOrigin(publicServiceOrigin);
   const app = new Hono<{ Bindings: Runtime }>();
 
   app.use('/api/*', secureHeaders({ crossOriginEmbedderPolicy: false, crossOriginResourcePolicy: false }));
@@ -75,7 +77,7 @@ export function createApp({
     maxSize: 4096, onError: context => context.json(issue('BODY_TOO_LARGE', 'The question or profile is too large.'), 413),
   }), async context => {
     const origin = context.req.header('origin');
-    if (origin && origin !== new URL(context.req.url).origin && origin !== developmentOrigin
+    if (origin && origin !== new URL(context.req.url).origin && origin !== developmentOrigin && origin !== serviceOrigin
       && origin !== httpsOrigin(context.env?.SAANS_PUBLIC_ORIGIN)) {
       return context.json(issue('FORBIDDEN_ORIGIN', 'Use the assistant from this site.'), 403);
     }

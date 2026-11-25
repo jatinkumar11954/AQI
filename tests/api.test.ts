@@ -197,6 +197,16 @@ it('accepts the local Vite origin only when explicitly configured by the dev ser
   expect((await production.request(url, post(question, { origin }))).status).toBe(403);
 });
 
+it('accepts the Render service origin behind TLS termination without opening CORS', async () => {
+  const origin = 'https://service.onrender.com';
+  const url = 'http://service.onrender.com/api/ask';
+  const app = createApp({ fetcher: async target => baseFeed(target), clock: () => NOW, publicServiceOrigin: origin });
+  const response = await app.request(url, post(question, { origin }));
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  expect((await app.request(url, post(question, { origin: 'https://other.onrender.com' }))).status).toBe(403);
+});
+
 it('prefers an active OpenAQ monitor over a closer inactive record', async () => {
   const latest = new Date((NOW - HOUR) * 1000).toISOString();
   const old = new Date((NOW - 365 * 24 * HOUR) * 1000).toISOString();

@@ -1,6 +1,6 @@
 # SaansAI API
 
-Production API origin is [Render](https://aqi-0xk3.onrender.com). The public frontend makes credential-free HTTPS requests. The API allows browser access from the configured exact Pages origin and accepts only JSON assistant requests. Responses use `Cache-Control: no-store`. Internal caches reuse provider results.
+Production API origin is [Render](https://aqi-0xk3.onrender.com). The public frontend makes credential-free HTTPS requests. The API allows browser access from the configured exact Pages origin. The Render service also recognizes its own documented public URL for same-site assistant requests behind TLS termination. Assistant requests require JSON. Responses use `Cache-Control: no-store`. Internal caches reuse provider results.
 
 | Method and route | Request | Success | Common failures |
 |---|---|---|---|
