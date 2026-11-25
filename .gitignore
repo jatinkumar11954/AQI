@@ -18,3 +18,5 @@ test-results/
 .cursor/
 
 coverage/
+.vercel
+.env*
