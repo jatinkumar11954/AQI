@@ -1,0 +1,34 @@
+# Data methodology
+
+## Observations and forecasts
+
+| Feed | What SaansAI uses | Availability and limits |
+|---|---|---|
+| CPCB via data.gov.in and India API | Nearest eligible station in the relay's five-station response within 25 km. Displays the relay's India-scale station AQI and PM2.5 / PM10 sub-indices, the station name, distance and upstream timestamp. | The relay documents hourly refresh, anonymous requests at 600 units/min, and 3,000 units/min with a free key. Anonymous HTTP 200 and recent station records were verified for Delhi, Mumbai, Bengaluru and Lucknow on 26 November 2026. Coverage and recency depend on the station. |
+| OpenAQ v3 | When configured and recent, shows latest PM2.5 and PM10 mass concentration with each sensor's timestamp. Reference stationary monitor search is limited to 25 km. | Requires an API key. Free limits are 60 requests/min and 2,000/hour per key. An unauthenticated API probe returned 401. Observed mass parsing and error paths were exercised with fixtures. The public AWS archive is delayed by 72 hours after each local day ends. |
+| Open-Meteo Air Quality / CAMS | The latest model estimate, hourly PM2.5 and PM10 in µg/m³, and US AQI. India uses the global CAMS model at roughly 45 km resolution. | Public non-commercial tier. India-hour bins are presented in IST. Forecast data may lag or differ from street-level measurements. |
+| Open-Meteo Weather and GeoNames | Temperature, humidity and wind estimates. City and postcode search returns only India-tagged results. | Models and stations can be incomplete. Weather can fail independently of the AQI forecast. |
+
+Sources [India API documentation](https://api.dharun.dev/docs/air-quality) · [India API limits](https://api.dharun.dev/keys) · [CPCB government dataset](https://data.gov.in/resource/real-time-air-quality-index-various-locations) · [CPCB official AQI](https://airquality.cpcb.gov.in/AQI_India/) · [OpenAQ API](https://docs.openaq.org/docs) · [OpenAQ rate limits](https://docs.openaq.org/using-the-api/rate-limits) · [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api) · [Weather](https://open-meteo.com/en/docs) · [Geocoding](https://open-meteo.com/en/docs/geocoding-api)
+
+Relay pollutant values are sub-indices. SaansAI neither applies concentration units to them nor treats the relay's composite as CPCB's official city AQI. The station and model use separate cards and index labels. Missing values stay missing. Station readings over 3 hours old are stale. Values older than 48 hours or more than 5 minutes in the future are discarded. The nearest match is a city-reference monitor, with no street-level interpolation.
+
+## Decisions
+
+The planner discards expired or stale model data. A timed suggestion needs two consecutive future forecast hours in the next 24 hours that are wholly outside work hours and inside the app's 07:00–20:00 scheduling period. It minimizes the higher US AQI of the two hours, then selects the earlier tie. The ceiling is US AQI 50 for sensitive households, play and exercise and 100 for other errands. Current model AQI above 100 for sensitive households or 150 for others blocks a timed suggestion. A fresh conflicting station reading also blocks it. India-scale AQI or a PM sub-index at least 101, or OpenAQ PM2.5 at least 35.5 µg/m³ or PM10 at least 155 µg/m³, are conservative application screens. They do not derive a local AQI or assess safety. The app recommends checking local conditions and following official advisories.
+
+Ventilation uses the current model, station conflict screen and modeled temperature of 18–32 °C as product criteria. The app has no indoor sensor, building, or emergency information. Source control and compatible exhaust or filtration are available independently of the outdoor suggestion. [AirNow AQI](https://smoke.airnow.gov/aqi/aqi-basics/) · [AirNow activity guidance](https://document.airnow.gov/air-quality-guide-for-particle-pollution.pdf) · [EPA cleaner indoor air](https://www.epa.gov/emergencies-iaq/create-clean-room-protect-indoor-air-quality-during-wildfire) · [EPA cooking guidance](https://www.epa.gov/indoor-air-quality-iaq/strategies-improving-indoor-air-quality-while-cooking-infographic) · [EPA air cleaners guide](https://www.epa.gov/indoor-air-quality-iaq/guide-air-cleaners-home)
+
+## Estimates
+
+- Petrol used per month = user-entered petrol km per changed day × changed days ÷ km/L.
+- Tailpipe CO₂ = litres of petrol × 2.34 kg CO₂/L. This is a UK 2026 reporting proxy, not an India-specific factor. It excludes upstream fuel production, other gases, mode substitution emissions and vehicle lifecycle. [DUKES 2026, Annex A](https://assets.publishing.service.gov.uk/media/6a6a3b710c36759b5ccaa1e5/DUKES_2026_Annexes_A-J.pdf)
+- Fuel and fare savings = difference in fuel use × user-entered price − alternative daily spend × changed days. Maintenance, parking and depreciation are excluded. Costs may increase.
+- Community result = the signed per-household tailpipe change × the illustrative number of households. It is neither participation tracking nor a measured emissions reduction.
+- Outdoor PM2.5 proxy = hourly modeled concentration converted to µg·h/m³ by multiplying by outdoor minutes ÷ 60. Each duration stays within its selected one-hour bin. The result describes ambient concentration-time and excludes route, indoor infiltration, ventilation rate and inhaled dose.
+
+## Assistant boundary
+
+Gemini receives a short question, selected profile settings, current regional model data and conservative decision flags. It returns a validated topic enum. The application builds wording, numeric answers and source links from its guidance catalog and rules. A visible fixed-rule mode handles an absent key, quotas and model errors. No names or exact GPS are required. The site asks users to avoid personal and medical details in free text.
+
+With GitHub Pages in keyless mode, requests to the public city, station and forecast feeds run in the browser. City-level query data is sent to those providers. Questions and household settings stay local in this mode. OpenAQ and Gemini can be enabled through a separately hosted HTTPS API using server-only secrets.

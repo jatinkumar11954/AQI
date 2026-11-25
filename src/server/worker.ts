@@ -1,5 +1,5 @@
 import { createApp } from './app';
-import type { Keys } from './environment';
+import type { Keys } from './config';
 import { staticAsset } from './worker-assets.mjs';
 
 const api = createApp();

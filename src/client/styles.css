@@ -367,7 +367,7 @@ select {
   color: #f6faf7;
   background:
     linear-gradient(108deg, rgba(16, 36, 28, 0.94) 0%, rgba(20, 44, 35, 0.86) 56%, rgba(20, 44, 35, 0.65) 100%),
-    url('/delhi-skyline.jpg') right bottom / cover no-repeat;
+    var(--hero-bg, url('/delhi-skyline.jpg')) right bottom / cover no-repeat;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;

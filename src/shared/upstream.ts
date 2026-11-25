@@ -33,8 +33,10 @@ async function boundedJson(response: Response) {
 export function createTransport(fetcher: Fetcher) {
   return async function request(url: URL, init: RequestInit = {}, retries = 1, timeout = 2600): Promise<unknown> {
     for (let attempt = 0; ; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
       try {
-        const response = await fetcher(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(timeout) });
+        const response = await fetcher(url, { ...init, redirect: 'error', signal: controller.signal });
         if (!response.ok) {
           await response.body?.cancel();
           throw new UpstreamError(response.status);
@@ -42,8 +44,10 @@ export function createTransport(fetcher: Fetcher) {
         return await boundedJson(response);
       } catch (error) {
         if (attempt >= retries || (error instanceof UpstreamError && error.status < 500 && error.status !== 408)) throw error;
-        await new Promise(resolve => setTimeout(resolve, 160));
+      } finally {
+        clearTimeout(timer);
       }
+      await new Promise(resolve => setTimeout(resolve, 160));
     }
   };
 }

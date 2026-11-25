@@ -2,7 +2,7 @@
 
 | Requirement | Implementation | Verification |
 |---|---|---|
-| Observed pollution | OpenAQ v3 monitor discovery and latest sensor timestamps. CPCB link for Indian National AQI. | Verify endpoint authentication and public station coverage. Exercise mapping and stale observations with fixtures. |
+| Observed pollution | India API relay of CPCB station AQI and PM sub-indices. Optional OpenAQ for measured concentrations. Separate official CPCB link. | Verify endpoint authentication and public station coverage. Exercise mapping and stale observations with fixtures. |
 | Air quality and weather | Open-Meteo CAMS model, US AQI and PM hourly forecast. Separate weather and observation views. | Smoke-test real feeds. Verify partial failures, nulls and drift. |
 | Household planner | City, work/commute, schedule, household and affordability rules. Conservative, forecast-gated time windows. | Test scheduling, sensitive groups, hazardous and missing weather/air cases. |
 | Indoor and sustainable routines | Referenced action catalog, ventilation guidance, budget filters and checklist. | Verify source and accessibility of each action. |

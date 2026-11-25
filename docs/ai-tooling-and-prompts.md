@@ -22,3 +22,9 @@ This document records the actual AI workflow used across the development and sub
 3. **Submission Audit & Repository Hygiene (Google Antigravity)**
    - *Goal*: Ensure the repository excludes local tool configs/caches/logs/secrets, preserves genuine Git commits without fabricated history, includes deployment/documentation artifacts, and publishes cleanly to GitHub via SSH.
    - *Outcome*: Completed missing stylesheet/worker-asset/deployment modules, removed duplicate declaration files, verified `tsc --noEmit` and `npm run build` (Vite client + Node server + Cloudflare Worker bundle), scanned all tracked files for credentials/sensitive configs, and pushed to `main`.
+
+## Final review prompts
+
+The first direct Antigravity architecture prompt was blocked by interactive tool permissions. A tool-free version asked for three failure modes involving modeled forecasts, sensitive households and catalog-constrained Gemini. A longer source-excerpt audit timed out. A shorter independent prompt asked what evidence would verify schedule overlap and the simulator’s exposure and fuel calculations. It returned checks for full-interval overlap and concentration-time units, which were compared with the implementation and tests.
+
+The user supplied the requirements and evaluation criteria. Google Antigravity contributed styling, Worker bundling, GitHub Pages setup, tests and documentation alongside earlier prototype scaffolding. Test counts and live observations came from executed checks, and the public post is a draft.

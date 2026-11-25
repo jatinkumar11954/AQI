@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type Station, type Weather } from '../shared/model';
+import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type Station, type Weather } from './model';
 import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream';
 
-export type Keys = { OPENAQ_API_KEY?: string; GEMINI_API_KEY?: string; GEMINI_MODEL?: string };
 const scalar = z.number().min(0);
 const nonnegative = (value: unknown) => scalar.safeParse(value).data ?? null;
 const number = (value: unknown) => z.number().safeParse(value).data ?? null;
@@ -119,10 +118,10 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
   }
 
   const mostRecent = (entry: Station) => entry.kind === 'cpcb-relay' ? entry.time : Math.max(entry.pm25?.time ?? 0, entry.pm10?.time ?? 0);
-  async function observation(key: string, lat: number, lon: number, keys: Keys) {
+  async function observation(key: string, lat: number, lon: number, openaqApiKey: string | undefined) {
     let openAQ;
-    if (keys.OPENAQ_API_KEY) {
-      openAQ = await stationCache(key, () => station(lat, lon, keys.OPENAQ_API_KEY!)).catch(() => null);
+    if (openaqApiKey) {
+      openAQ = await stationCache(key, () => station(lat, lon, openaqApiKey)).catch(() => null);
       if (openAQ?.value && !openAQ.stale && clock() - mostRecent(openAQ.value) <= 3 * HOUR) return openAQ;
     }
     const relay = await relayCache(key, () => relayStation(lat, lon)).catch(() => null);
@@ -145,7 +144,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
       });
       return cached.value;
     },
-    async get(coords: { lat: number; lon: number }, keys: Keys): Promise<Environment> {
+    async get(coords: { lat: number; lon: number }, openaqApiKey?: string): Promise<Environment> {
       const lat = Number(coords.lat.toFixed(2));
       const lon = Number(coords.lon.toFixed(2));
       const key = lat + ',' + lon;
@@ -166,7 +165,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
           if (!current || time == null) throw new UpstreamError(502);
           return { time, temperature: number(current.temperature_2m), humidity: nonnegative(current.relative_humidity_2m), wind: nonnegative(current.wind_speed_10m) };
         }),
-        observation(key, lat, lon, keys),
+        observation(key, lat, lon, openaqApiKey),
       ]);
       const now = clock();
       const out = { ...EMPTY_ENV };

@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { build } from 'esbuild';
 
@@ -53,8 +53,5 @@ await build({
   target: 'es2022',
   outfile: 'dist/worker.mjs',
 });
-
-mkdirSync('dist/server', { recursive: true });
-copyFileSync('dist/worker.mjs', 'dist/server/index.js');
 
 console.log('Built dist/worker.mjs with ' + Object.keys(manifest).length + ' embedded static assets.');

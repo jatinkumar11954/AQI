@@ -4,6 +4,7 @@ import { PROFILES, SOURCES, type City, type Environment, type Profile } from '..
 import { dailyActions, formatDate, formatTime, futureHours, INDOOR, SUSTAINABLE, ventilation, type Action } from '../shared/planner';
 import { calculateImpact, DEFAULT_SCENARIO, outdoorProxy, PETROL_FACTOR, scenarioSchema, type Scenario } from '../shared/impact';
 import { type Answer } from '../shared/assistant';
+import { askSaansAI } from './data';
 import { CleanerWindow } from './overview';
 import { CardTitle, SourceLink, useStored } from './ui';
 
@@ -188,7 +189,7 @@ export function Improvement({ env, now }: { env: Environment; now: number }) {
 const prompts = ['Should I open the windows?', 'How should I adjust my commute?', 'Can the children play outside?', 'What can I do about cooking smoke?'];
 const labels = { unconfigured: 'Gemini is unconfigured · Rules answer', quota: 'Gemini quota reached · Rules answer', unavailable: 'Gemini unavailable · Rules answer' };
 
-export function Assistant({ city, profile, hindi }: { city: City; profile: Profile; hindi: boolean }) {
+export function Assistant({ city, profile, hindi, env }: { city: City; profile: Profile; hindi: boolean; env: Environment }) {
   const [question, setQuestion] = useState('');
   const [entries, setEntries] = useState<{ question: string; answer: Answer }[]>([]);
   const [pending, setPending] = useState('');
@@ -205,14 +206,8 @@ export function Assistant({ city, profile, hindi }: { city: City; profile: Profi
     setError(''); setQuestion(''); setPending(value);
     const timeout = AbortSignal.timeout(14_000);
     try {
-      const response = await fetch('/api/ask', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location: { lat: city.lat, lon: city.lon }, profile, question: value, language: hindi ? 'hi' : 'en' }),
-        signal: AbortSignal.any([controller.signal, timeout]),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message || 'The assistant is unavailable.');
-      if (!controller.signal.aborted) setEntries(previous => [...previous.slice(-7), { question: value, answer: data }]);
+      const answer = await askSaansAI(value, city, profile, hindi ? 'hi' : 'en', env, AbortSignal.any([controller.signal, timeout]));
+      if (!controller.signal.aborted) setEntries(previous => [...previous.slice(-7), { question: value, answer }]);
     } catch (cause) {
       if (!controller.signal.aborted) {
         setQuestion(value);

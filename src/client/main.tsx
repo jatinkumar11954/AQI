@@ -6,6 +6,7 @@ import '@fontsource-variable/dm-sans';
 import './styles.css';
 import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, citySchema, profileSchema, type City, type Environment, type Profile } from '../shared/model';
 import { dateKey, formatDate } from '../shared/planner';
+import { readEnvironment } from './data';
 import { AirOverview } from './overview';
 import { Assistant, Improvement, Indoor, Planner } from './sections';
 import { LocationDialog, SourceLink, useStored } from './ui';
@@ -64,15 +65,7 @@ function App() {
     const controller = new AbortController();
     setRefreshing(true);
     const networkLimit = AbortSignal.timeout(12_000);
-    fetch('/api/environment?' + new URLSearchParams({ lat: String(city.lat), lon: String(city.lon) }), {
-      signal: AbortSignal.any([controller.signal, networkLimit]),
-    }).then(async response => {
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.error?.message ?? 'Air data could not be loaded.');
-      }
-      return response.json() as Promise<Environment>;
-    }).then(data => {
+    readEnvironment(city, AbortSignal.any([controller.signal, networkLimit])).then(data => {
       if (!controller.signal.aborted) setSelection({ key, data, error: '' });
     }).catch((error: Error) => {
       if (!controller.signal.aborted) setSelection(previous => ({
@@ -131,7 +124,7 @@ function App() {
           {page === 'planner' && <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />}
           {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
           {page === 'impact' && <Improvement env={env} now={now} />}
-          {page === 'assistant' && <Assistant key={key + JSON.stringify(profile) + String(hindi)} city={city} profile={profile} hindi={hindi} />}
+          {page === 'assistant' && <Assistant key={key + JSON.stringify(profile) + String(hindi)} city={city} profile={profile} hindi={hindi} env={env} />}
           <footer className="footer" id="sources">
             <div><strong>SaansAI</strong><span>{formatDate(now)} · All times in IST</span></div>
             <div><SourceLink id="model" short="Open-Meteo / CAMS" /><SourceLink id="openaq" short="OpenAQ" /><SourceLink id="cpcb" short="CPCB" /><SourceLink id="aqi" short="US AQI scale" /></div>

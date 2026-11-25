@@ -11,7 +11,8 @@ async function get(path, settings) {
 const home = await get('/');
 assert.equal(home.status, 200);
 assert.match(home.bytes.toString(), /SaansAI/);
-assert.match(home.headers.get('content-security-policy') || '', /default-src 'self'/);
+const csp = home.headers.get('content-security-policy') || home.bytes.toString().match(/http-equiv="Content-Security-Policy" content="([^"]+)/)?.[1];
+assert.match((csp || '').replaceAll('&#39;', "'"), /default-src 'self'/);
 const health = await get('/api/health');
 assert.deepEqual(JSON.parse(health.bytes), { status: 'ok' });
 const coordinates = {

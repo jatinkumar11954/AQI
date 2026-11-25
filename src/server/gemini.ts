@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { composeAnswer, inferTopic, TOPICS, type Answer } from '../shared/assistant';
 import { nearbyParticleCaution, findWindows, modelNow } from '../shared/planner';
 import { type Environment, type Profile } from '../shared/model';
-import { type Keys } from './environment';
-import { createLimiter, createTransport, UpstreamError, type Fetcher } from './upstream';
+import { type Keys } from './config';
+import { createLimiter, createTransport, UpstreamError, type Fetcher } from '../shared/upstream';
 
 const parsedTopic = z.object({ topic: z.enum(TOPICS) }).strict();
 const completion = z.object({ candidates: z.array(z.object({

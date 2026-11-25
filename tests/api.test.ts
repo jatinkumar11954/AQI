@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { createApp } from '../src/server/app';
-import { createCache, createTransport } from '../src/server/upstream';
+import { createCache, createTransport } from '../src/shared/upstream';
 import { DEFAULT_PROFILE, HOUR } from '../src/shared/model';
 import { NOW, providerAir, relayPayload } from './fixtures';
 
@@ -147,4 +147,40 @@ it('drops oversized streamed upstream bodies without retrying them', async () =>
   const request = createTransport(fetcher);
   await expect(request(new URL('https://example.test/'))).rejects.toMatchObject({ status: 422 });
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it('invokes the default runtime fetch with its global receiver', async () => {
+  const runtimeFetch = vi.fn(async function (this: typeof globalThis, target: URL) {
+    if (this !== globalThis) throw new TypeError('Wrong fetch receiver');
+    return baseFeed(target);
+  });
+  vi.stubGlobal('fetch', runtimeFetch);
+  try {
+    const response = await createApp({ clock: () => NOW }).request(envPath);
+    expect(await response.json()).toMatchObject({ airStatus: 'fresh', stationStatus: 'fresh' });
+    expect(runtimeFetch).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it('allows the configured Pages origin and rejects cross-origin requests from other sites', async () => {
+  const origin = 'https://project-owner.github.io';
+  const runtime = { SAANS_PUBLIC_ORIGIN: origin };
+  const app = createApp({ fetcher: async target => baseFeed(target), clock: () => NOW });
+  const preflight = (caller: string) => app.request('/api/ask', {
+    method: 'OPTIONS',
+    headers: { origin: caller, 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type' },
+  }, runtime);
+  const allowed = await preflight(origin);
+  expect(allowed.status).toBe(204);
+  expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe(origin);
+  expect(allowed.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type');
+  expect((await preflight('https://other.github.io')).status).toBe(403);
+  const bad = await app.request('/api/ask', post(question, { origin: 'https://other.github.io' }), runtime);
+  expect(bad.status).toBe(403);
+  expect(bad.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  const response = await app.request('/api/ask', post(question, { origin }), runtime);
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin);
 });

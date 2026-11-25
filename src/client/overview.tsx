@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Activity, ArrowDown, ArrowRight, ArrowUp, CalendarDays, ChevronRight, Clock3, Droplet, House, MapPin, RadioTower, ShieldCheck, Sparkles, Thermometer, Wind } from 'lucide-react';
 import { HOUR, type AirPoint, type City, type Environment, type Profile, type Reading } from '../shared/model';
 import { dailyActions, findWindows, formatDate, formatTime, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
@@ -24,7 +24,8 @@ function Hero({ env, city, now, loading }: { env: Environment; city: City; now: 
   const value = current?.aqi ?? last?.aqi ?? null;
   const isCurrent = current?.aqi != null;
   const category = risk(value);
-  return <section className="hero" aria-labelledby="hero-title">
+  const heroStyle = { '--hero-bg': `url("${import.meta.env.BASE_URL}delhi-skyline.jpg")` } as CSSProperties;
+  return <section className="hero" style={heroStyle} aria-labelledby="hero-title">
     <div className="hero-top"><h2 id="hero-title" className="eyebrow"><MapPin size={15} /> {city.name.toUpperCase()}, INDIA</h2>
       <span className="feed-label"><span />{loading ? 'Updating model' : isCurrent ? 'Current model' : value != null ? 'Earlier model' : 'Feed unavailable'}</span>
     </div>
