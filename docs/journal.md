@@ -12,7 +12,7 @@
 ### Completion, Hardening & Publishing (Google Antigravity)
 - Audited the workspace and updated `.gitignore` to exclude local tool metadata, IDE folders, session logs, build outputs, and `.env` files while keeping `.env.example`.
 - Implemented `src/client/styles.css`, pure Web-API `src/server/worker-assets.mjs`, `scripts/build-worker.mjs`, `wrangler.toml`, `Dockerfile`, and `.dockerignore`.
-- Removed duplicate `src/server/worker-assets.d.ts` in favor of `src/server/worker-assets.d.mts`, verified `npm run check` (`tsc --noEmit`) with 0 errors and `npm run build` (`dist/client`, `dist/server.mjs`, `dist/worker.mjs`), scanned for exposed secrets/local tool files, and pushed `main` to `git@github.com:jatinkumar11954/AQI.git`.
+- Removed duplicate `src/server/worker-assets.d.ts` in favor of `src/server/worker-assets.d.mts`, removed extra `dist/server/index.js` copy step from `scripts/build-worker.mjs`, added GitHub Pages workflow (`.github/workflows/pages.yml`) and static-site support, verified `npm run check` (0 errors), `npm test` (36/36), `npm run test:e2e` (16/16), `npm run build`, and `npm run build:pages`, and pushed `main` to `git@github.com:jatinkumar11954/AQI.git`.
 
 ### Evaluation and remediation
 
