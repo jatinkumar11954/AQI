@@ -64,8 +64,13 @@ jobs:
       - name: Deploy production to Vercel
         id: deploy_prod
         if: github.event_name != 'pull_request'
-        run: echo "url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+        run: |
+          log=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee /dev/stderr)
+          alias_url=$(printf '%s\n' "$log" | grep 'Aliased' | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)
+          deploy_url=$(printf '%s\n' "$log" | grep 'Production' | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)
+          echo "url=${alias_url:-$deploy_url}" >> "$GITHUB_OUTPUT"
       - name: Smoke test deployed Vercel instance
+        if: github.event_name != 'pull_request'
         env:
-          DEPLOY_URL: ${{ steps.deploy_prod.outputs.url || steps.deploy_preview.outputs.url }}
+          DEPLOY_URL: ${{ steps.deploy_prod.outputs.url }}
         run: node scripts/smoke.mjs "$DEPLOY_URL"
