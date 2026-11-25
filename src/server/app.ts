@@ -65,7 +65,7 @@ export function createApp({
   });
   app.get('/api/places', async context => {
     const query = searchSchema.safeParse(context.req.query('q'));
-    if (!query.success) return context.json(issue('INVALID_SEARCH', 'Enter a city or postcode with 2–64 characters.'), 400);
+    if (!query.success) return context.json(issue('INVALID_SEARCH', 'Enter a city or neighbourhood with 2–64 characters.'), 400);
     return context.json({ places: await environment.search(query.data) });
   });
   app.get('/api/environment', async context => {

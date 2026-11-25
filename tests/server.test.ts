@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/server/app';
 import { HOUR } from '../src/shared/model';
 import worker from '../src/server/worker';
+import vercelHandler from '../api/index';
 import { staticAsset } from '../src/server/worker-assets.mjs';
 
 const NOW = 1795631400;
@@ -232,6 +233,80 @@ describe('Worker entrypoint and staticAsset helper', () => {
       expect(method.status).toBe(405);
     } finally {
       delete (globalThis as unknown as { __SAANS_ASSETS__?: typeof manifest }).__SAANS_ASSETS__;
+    }
+  });
+});
+
+describe('Vercel serverless handler (api/index.ts)', () => {
+  it('routes API paths, preserves same-origin security, and isolates client rate limits via x-vercel-forwarded-for', async () => {
+    const liveNow = Math.floor(Date.now() / 1000);
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const href = String(input);
+      if (href.includes('air-quality-api.open-meteo.com')) {
+        return new Response(JSON.stringify({
+          current: { time: liveNow, us_aqi: 92, pm2_5: 29.4, pm10: 54.1 },
+          hourly: { time: [liveNow, liveNow + HOUR, liveNow + 2 * HOUR], us_aqi: [92, 85, 78], pm2_5: [29.4, 26.2, 23.1], pm10: [54.1, 48.0, 44.0] },
+        }), { status: 200 });
+      }
+      if (href.includes('api.open-meteo.com/v1/forecast')) {
+        return new Response(JSON.stringify({ current: { time: liveNow, temperature_2m: 25.3, relative_humidity_2m: 52, wind_speed_10m: 9.4 } }), { status: 200 });
+      }
+      return new Response('unavailable', { status: 404 });
+    }) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetcher);
+    try {
+      const health = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/health'));
+      expect(health.status).toBe(200);
+      expect(await health.json()).toEqual({ status: 'ok' });
+
+      const ready = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/ready'));
+      expect(ready.status).toBe(200);
+      expect(await ready.json()).toEqual({ status: 'ready' });
+
+      const envRes = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/environment?lat=18.52&lon=73.86'));
+      expect(envRes.status).toBe(200);
+      expect(envRes.headers.get('cache-control')).toBe('no-store');
+      expect(await envRes.json()).toMatchObject({ airStatus: 'fresh' });
+
+      const payload = {
+        location: { lat: 28.61, lon: 77.21 },
+        profile: {
+          children: false, seniors: false, sensitive: false, work: 'office', commute: 'transit',
+          workStart: 9, workEnd: 17, activity: 'errands', budget: 'zero',
+        },
+        question: 'Should I open the windows?',
+        language: 'en',
+      };
+      const evil = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/ask', {
+        method: 'POST',
+        headers: { Origin: 'https://evil.example', 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '198.51.100.1' },
+        body: JSON.stringify(payload),
+      }));
+      expect(evil.status).toBe(403);
+
+      for (let i = 0; i < 5; i++) {
+        const ok = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/ask', {
+          method: 'POST',
+          headers: { Origin: 'https://saans.vercel.app', 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.10' },
+          body: JSON.stringify(payload),
+        }));
+        expect(ok.status).toBe(200);
+      }
+      const throttled = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/ask', {
+        method: 'POST',
+        headers: { Origin: 'https://saans.vercel.app', 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.10' },
+        body: JSON.stringify(payload),
+      }));
+      expect(throttled.status).toBe(429);
+
+      const otherClient = await vercelHandler.fetch(new Request('https://saans.vercel.app/api/ask', {
+        method: 'POST',
+        headers: { Origin: 'https://saans.vercel.app', 'Content-Type': 'application/json', 'x-vercel-forwarded-for': '203.0.113.11' },
+        body: JSON.stringify(payload),
+      }));
+      expect(otherClient.status).toBe(200);
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

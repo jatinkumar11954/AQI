@@ -574,20 +574,21 @@ select {
   gap: 1rem;
 }
 
-.window-card {
+.dashboard > .window-card {
   grid-column: span 4;
 }
 
-.forecast-card {
+.dashboard > .forecast-card {
+  grid-column: span 7;
+}
+
+.dashboard > .actions-card {
   grid-column: span 8;
 }
 
-.actions-card {
-  grid-column: span 8;
-}
-
-.station-card { grid-column: span 6; }
-.weather-card { grid-column: span 4; }
+.dashboard > .hero,
+.dashboard > .station-card { grid-column: span 6; }
+.dashboard > .weather-card { grid-column: span 5; }
 
 .station-report + .station-report { border-top: 1px solid var(--border); padding-top: .9rem; }
 .station-report h3, .station-report p { margin: 0 0 .25rem; }
@@ -915,6 +916,17 @@ html { scroll-padding-top: 5rem; }
   flex-shrink: 0;
 }
 
+.mini-action > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.mini-action > svg:last-child {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+
 .mini-action strong {
   display: block;
   font-size: 0.92rem;
@@ -976,7 +988,7 @@ html { scroll-padding-top: 5rem; }
 
 .weather-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 0.75rem;
 }
 
@@ -984,6 +996,8 @@ html { scroll-padding-top: 5rem; }
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  padding: 0.75rem 0.75rem;
+  min-width: 0;
 }
 
 .weather-grid span,
@@ -1369,12 +1383,14 @@ html { scroll-padding-top: 5rem; }
 
   .navigation {
     flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 0.2rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
   }
 
   .navigation a {
     white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.88rem;
   }
 
   .sidebar-bottom {
@@ -1387,12 +1403,16 @@ html { scroll-padding-top: 5rem; }
     padding-right: 1rem;
   }
 
-  .hero,
-  .window-card,
-  .forecast-card,
-  .actions-card,
-  .station-card,
-  .weather-card {
+  .content {
+    padding-bottom: 5.5rem;
+  }
+
+  .dashboard > .hero,
+  .dashboard > .window-card,
+  .dashboard > .forecast-card,
+  .dashboard > .actions-card,
+  .dashboard > .station-card,
+  .dashboard > .weather-card {
     grid-column: span 12;
   }
 
@@ -1452,5 +1472,9 @@ html { scroll-padding-top: 5rem; }
   .weather-grid,
   .readings {
     grid-template-columns: 1fr;
+  }
+
+  .chart-columns {
+    gap: 2px;
   }
 }

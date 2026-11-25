@@ -91,9 +91,12 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
         .sort((a, b) => b.time - a.time)[0];
       return result ?? null;
     };
+    const pm25 = find('pm25');
+    const pm10 = find('pm10');
+    if (!pm25 && !pm10) return null;
     return {
       kind: 'openaq' as const, id: nearest.id, name: nearest.name, owner: nearest.owner?.name ?? nearest.provider.name,
-      provider: nearest.provider.name, distance: nearest.distance! / 1000, pm25: find('pm25'), pm10: find('pm10'),
+      provider: nearest.provider.name, distance: nearest.distance! / 1000, pm25, pm10,
     };
   }
 
@@ -150,11 +153,16 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
       const cached = await searchCache(key, async () => {
         if (!providers('search', 24)) throw new UpstreamError(429);
         const response = await request(url('https://geocoding-api.open-meteo.com/v1/search', { name: query, count: 8, countryCode: 'IN', language: 'en' }));
-        return z.object({ results: z.array(row).max(20).optional() }).parse(response).results?.flatMap(entry => {
+        const seen = new Set<string>();
+        return (z.object({ results: z.array(row).max(20).optional() }).parse(response).results ?? []).flatMap(entry => {
           if (entry.country_code !== 'IN') return [];
           const city = citySchema.safeParse({ name: entry.name, state: entry.admin1 ?? '', lat: entry.latitude, lon: entry.longitude });
-          return city.success ? [city.data] : [];
-        }) ?? [];
+          if (!city.success) return [];
+          const label = city.data.name.toLowerCase() + '|' + city.data.state.toLowerCase();
+          if (seen.has(label)) return [];
+          seen.add(label);
+          return [city.data];
+        });
       });
       return cached.value;
     },

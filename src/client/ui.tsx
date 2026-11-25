@@ -70,14 +70,14 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
   }
 
   return <dialog ref={dialog} className="location-dialog" aria-labelledby="location-title" onCancel={close} onClose={close}>
-    <div className="card-heading"><span className="icon-tile"><MapPin size={20} /></span><div className="card-heading-text"><h2 id="location-title">Choose your city</h2><p>Search Indian cities or postcodes.</p></div>
+    <div className="card-heading"><span className="icon-tile"><MapPin size={20} /></span><div className="card-heading-text"><h2 id="location-title">Choose your city</h2><p>Search Indian cities or neighbourhoods.</p></div>
       <button className="button icon-button" onClick={close} aria-label="Close location picker"><X size={18} /></button></div>
     <form className="search" onSubmit={search}>
-      <label className="sr-only" htmlFor="city-search">City or postcode</label>
-      <input ref={input} id="city-search" value={query} onChange={event => setQuery(event.target.value)} maxLength={64} placeholder="e.g. Pune" required minLength={2} />
+      <label className="sr-only" htmlFor="city-search">City or neighbourhood</label>
+      <input ref={input} id="city-search" name="city" value={query} onChange={event => setQuery(event.target.value)} maxLength={64} placeholder="e.g. Pune or Connaught Place" required minLength={2} />
       <button className="button primary" disabled={busy || query.trim().length < 2}><Search size={17} />{busy ? 'Searching' : 'Search'}</button>
     </form>
-    <div aria-live="polite">{error || (busy ? 'Searching Indian cities…' : results?.length === 0 ? 'No matches. Check the spelling or choose a suggested city.' : '')}</div>
+    <div aria-live="polite">{error || (busy ? 'Searching Indian cities…' : results?.length === 0 ? (/^\d{6}$/.test(query.trim()) ? 'PIN code lookup is unavailable. Search by city or neighbourhood name, or choose a suggested city.' : 'No matches. Check the spelling or choose a suggested city.') : '')}</div>
     <p className="eyebrow results-label">{results?.length ? 'SEARCH RESULTS' : 'SUGGESTED CITIES'}</p>
     <div className="place-grid">
       {(results?.length ? results : CITIES).map(place => <button key={place.name + place.lat + place.lon} className="place" onClick={() => choose(place)} aria-pressed={place.lat === city.lat && place.lon === city.lon}>

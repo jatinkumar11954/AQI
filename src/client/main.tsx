@@ -145,7 +145,7 @@ function App() {
           {page === 'planner' && <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />}
           {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
           {page === 'impact' && <Improvement env={env} now={now} />}
-          {page === 'assistant' && <Assistant key={key + JSON.stringify(profile) + String(hindi)} city={city} profile={profile} hindi={hindi} env={env} />}
+          {page === 'assistant' && <Assistant key={key + JSON.stringify(profile)} city={city} profile={profile} hindi={hindi} env={env} />}
           </Suspense>
           <footer className="footer" id="sources">
             <div><strong>SaansAI</strong><span>{formatDate(now)} · All times in IST</span></div>

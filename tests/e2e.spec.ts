@@ -17,7 +17,7 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
 
     // Open city picker and search Pune
     await page.getByRole('button', { name: /New Delhi, India/i }).click();
-    await page.getByLabel('City or postcode').fill('Pune');
+    await page.getByLabel('City or neighbourhood').fill('Pune');
     await page.getByRole('button', { name: /^Search$/ }).click();
     await page.getByRole('button', { name: /Pune/i }).click();
     await expect(page.getByRole('button', { name: /Pune, India/i })).toBeVisible();

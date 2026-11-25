@@ -25,7 +25,7 @@ test('reads modeled air, explores hours, finds a city and updates the forecast r
   await expect(page.getByRole('columnheader', { name: 'PM2.5 (µg/m³)' })).toBeVisible();
   await page.getByRole('button', { name: 'New Delhi, India' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('City or postcode').fill('Pune');
+  await page.getByLabel('City or neighbourhood').fill('Pune');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   const request = page.waitForRequest(req => req.url().includes('/api/environment?lat=18.52&lon=73.86'));
   await page.getByRole('button', { name: 'Pune Maharashtra' }).click();
@@ -41,6 +41,8 @@ test('applies a household preset, persists settings and checks off a daily actio
   await expect(page.getByRole('button', { name: 'Lucknow, India' })).toBeVisible();
   await expect(page.getByLabel('Older adults', { exact: true })).toBeChecked();
   await expect(page.getByLabel('Household budget')).toHaveValue('low');
+  await expect(page.getByText('Open your daily plan')).toHaveCount(0);
+  await expect(page.locator('.action-list')).not.toContainText('school advisories');
   const checkbox = page.getByRole('checkbox', { name: 'Plan for older family members completed' });
   await checkbox.check();
   await expect(page.getByText(/1 of 4 complete/)).toBeVisible();
@@ -63,10 +65,14 @@ test('changes both travel scenarios and computes the forecast exposure proxy', a
   await expect(page.getByLabel('Extra fare or trip cost (₹/day)')).toHaveValue('50');
   await page.getByLabel('Petrol vehicle efficiency (km/L)').fill('0');
   await expect(page.getByText(/Complete each input/)).toBeVisible();
-  await page.getByLabel('Petrol vehicle efficiency (km/L)').fill('15');
   await page.getByLabel('Current forecast hour').selectOption({ index: 1 });
   await page.getByLabel('Alternative forecast hour').selectOption({ index: 2 });
   await expect(page.getByText('Lower outdoor proxy')).toBeVisible();
+  await page.getByLabel('Current outdoor minutes').fill('65');
+  await expect(page.getByLabel('Current outdoor minutes')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText(/Enter whole outdoor minutes/)).toBeVisible();
+  await page.getByLabel('Current outdoor minutes').fill('25');
+  await page.getByLabel('Petrol vehicle efficiency (km/L)').fill('15');
   await page.getByText('Formulas and assumptions').click();
   await expect(page.getByText(/Litres = distance/)).toBeVisible();
 });
@@ -92,13 +98,44 @@ test('supports keyboard dismissal, Hindi quick tips, and mobile layout', async (
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   const city = page.getByRole('button', { name: 'New Delhi, India' });
   await city.click();
-  await expect(page.getByLabel('City or postcode')).toBeFocused();
+  await expect(page.getByLabel('City or neighbourhood')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(city).toBeFocused();
   await page.getByRole('button', { name: 'Toggle Hindi quick tips' }).click();
   await expect(page.getByText('बाहर की गतिविधि से पहले स्थानीय वायु गुणवत्ता फिर जाँचें।')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= (window.visualViewport?.width ?? window.innerWidth) + 1)).toBe(true);
+  const weatherFits = await page.evaluate(() => Array.from(document.querySelectorAll('.weather-grid span')).every(el => el.scrollWidth <= el.clientWidth + 1));
+  expect(weatherFits).toBe(true);
+});
+
+test('keeps planner full-width, wraps mobile nav, and clears footer above floating CTA', async ({ page }, testInfo) => {
+  await fixture(page);
+  await page.route('**/api/places?q=110001', route => route.fulfill({ json: { places: [] } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New Delhi, India' }).click();
+  await page.getByLabel('City or neighbourhood').fill('110001');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByText(/PIN code lookup is unavailable/)).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await nav(page, 'Daily planner').click();
+  const cardWidth = await page.locator('.section-grid > section').first().evaluate(el => el.getBoundingClientRect().width);
+  const gridWidth = await page.locator('.section-grid').first().evaluate(el => el.getBoundingClientRect().width);
+  if (testInfo.project.name.includes('Mobile')) {
+    expect(cardWidth).toBeGreaterThan(gridWidth * 0.95);
+    const navClipped = await page.evaluate(() => Array.from(document.querySelectorAll('.navigation a')).some(el => el.getBoundingClientRect().right > window.innerWidth + 1));
+    expect(navClipped).toBe(false);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const overlap = await page.evaluate(() => {
+      const fab = document.querySelector('.mobile-ask')?.getBoundingClientRect();
+      const footer = document.querySelector('.footer')?.getBoundingClientRect();
+      return Boolean(fab && footer && footer.bottom > fab.top && footer.right > fab.left);
+    });
+    expect(overlap).toBe(false);
+  } else {
+    expect(cardWidth).toBeGreaterThan(gridWidth * 0.45);
+  }
 });
 
 test('passes automated accessibility checks on each page and the location dialog', async ({ page }) => {

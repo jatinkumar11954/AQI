@@ -31,6 +31,19 @@ describe('Pages network recovery', () => {
     expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
   });
 
+  it('retries one transient environment failure on same-origin deployments such as Vercel or Node', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response('gateway', { status: 503 }))
+      .mockResolvedValueOnce(Response.json(modeled()));
+    vi.stubEnv('MODE', 'production');
+    vi.stubGlobal('fetch', fetcher);
+    vi.resetModules();
+    const api = await import('../src/client/data');
+    await expect(api.readEnvironment(location, new AbortController().signal)).resolves.toMatchObject({ airStatus: 'fresh' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toBe('/api/environment?lat=28.61&lon=77.21');
+  });
+
   it('does not retry throttled or aborted requests', async () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(Response.json({ error: { message: 'Try later.' } }, { status: 429 }))
@@ -51,6 +64,13 @@ describe('Pages network recovery', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to quota-labeled rules mode if /api/ask is rate-limited (429)', async () => {
+    const fetcher = vi.fn(async () => Response.json({ error: { message: 'Too many requests.' } }, { status: 429 }));
+    const api = await connect(fetcher);
+    const answer = await api.askSaansAI('Should I open windows?', location, DEFAULT_PROFILE, 'en', modeled(), new AbortController().signal);
+    expect(answer).toMatchObject({ mode: 'rules', status: 'quota', sources: ['clean'] });
+  });
+
   it('validates keyless search constraints and keeps assistant requests local', async () => {
     vi.stubEnv('MODE', 'pages');
     vi.stubEnv('VITE_API_BASE_URL', '');
@@ -59,7 +79,7 @@ describe('Pages network recovery', () => {
     vi.resetModules();
     const api = await import('../src/client/data');
     const { signal } = new AbortController();
-    await expect(api.searchCities('a', signal)).rejects.toThrow('Enter a city or postcode');
+    await expect(api.searchCities('a', signal)).rejects.toThrow('Enter a city or neighbourhood');
     const answer = await api.askSaansAI('Can children play outside?', location, DEFAULT_PROFILE, 'en', modeled(), signal);
     expect(answer).toMatchObject({ mode: 'rules', status: 'unconfigured', sources: ['clean'] });
     expect(fetcher).not.toHaveBeenCalled();

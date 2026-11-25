@@ -28,6 +28,20 @@ The assessment covers the repository, dependency lock, Node and Pages builds, pu
 | Dependencies and secrets | `npm audit --json` reported zero known advisories. The baseline scan of the trees of all six reachable Git commits found zero credential-pattern matches and no tracked local secret or IDE metadata paths. The production-configured Pages HTML and JavaScript scan also found zero matches. These checks are scoped and do not establish the absence of every possible vulnerability. |
 | Baseline deployment | Lighthouse 13.6.0 mobile measured **99 performance, 100 accessibility, 96 best practices and 100 SEO**. FCP 817 ms, LCP 2,102 ms, TBT 40 ms, CLS 0.0088. Chrome reported a Zod probe blocked by CSP. |
 
+## Public release evidence
+
+The GitHub Pages build and deployment succeeded for the frontend revision. Unauthenticated desktop and Pixel 7 browser sessions reached the Render API over HTTPS and showed fresh Delhi CAMS, OpenAQ and CPCB-relay data together. The document widths matched the viewports at 1,280 and 412 CSS pixels. The checks found zero axe violations on Today, zero page errors and zero CSP issues. Desktop verified the Gemini badge and reviewed sources. Mobile verified the live Pune city search. [Live Pages site](https://jatinkumar11954.github.io/AQI/) · [GitHub workflow](https://github.com/jatinkumar11954/AQI/actions/runs/45705125919)
+
+| Lighthouse 13.6.0 | Performance | Accessibility | Best practices | SEO | FCP | LCP | TBT | CLS | Transfer |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Mobile baseline | 99 | 100 | 96 | 100 | 817 ms | 2,102 ms | 40 ms | 0.0088 | 264,585 bytes |
+| Mobile release | 99 | 100 | 100 | 100 | 997 ms | 997 ms | 102 ms | 0.0000 | 228,774 bytes |
+| Desktop release | 100 | 100 | 100 | 100 | 204 ms | 410 ms | 0 ms | 0.0182 | 228,723 bytes |
+
+Each row is a single lab run. The timings characterize initial page rendering and vary with the network, hardware and service state. The mobile run loaded about 36 kB less, and the CSP inspector issue from the baseline disappeared. Measurements were taken on the Pages release that already contained the final frontend code.
+
+A production question about adjusting outdoor play and opening the windows returned HTTP 200, `mode: gemini`, a second answer and both the outdoor-activity and indoor-air source IDs in about 5.1 seconds. The app keeps numerical interpretation and advice wording deterministic. [Live API readiness](https://aqi-0xk3.onrender.com/api/ready)
+
 ## Remaining limitations
 
 - Reference monitors and the regional CAMS grid have distinct location and coverage limits. The CPCB relay can lag or omit sites. The app links directly to the official India National AQI and withholds time windows when the required data is stale or missing. It uses no indoor measurements or street-level exposure model.

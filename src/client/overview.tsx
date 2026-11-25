@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Activity, ArrowDown, ArrowRight, ArrowUp, CalendarDays, ChevronRight, Clock3, Droplet, House, MapPin, RadioTower, ShieldCheck, Sparkles, Thermometer, Wind } from 'lucide-react';
 import { HOUR, type AirPoint, type City, type Environment, type IndiaStation, type Profile, type Reading } from '../shared/model';
-import { dailyActions, findWindows, formatDate, formatTime, freshIndiaStation, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
+import { dailyActions, dateKey, findWindows, formatDate, formatTime, freshIndiaStation, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
 import { CardTitle, SourceLink } from './ui';
 
 type Shared = { env: Environment; now: number; profile: Profile; hindi: boolean };
@@ -42,7 +42,7 @@ function Hero({ env, city, now, loading }: { env: Environment; city: City; now: 
   </section>;
 }
 
-export function CleanerWindow({ env, now, profile, loading = false }: Omit<Shared, 'hindi'> & { loading?: boolean }) {
+export function CleanerWindow({ env, now, profile, loading = false, showLink = true }: Omit<Shared, 'hindi'> & { loading?: boolean; showLink?: boolean }) {
   const { lower, usable } = findWindows(env, profile, now);
   return <section className="card window-card">
     <CardTitle icon={<Clock3 size={20} />} title="Cleaner window" sub="Flexible outdoor plans" />
@@ -53,7 +53,7 @@ export function CleanerWindow({ env, now, profile, loading = false }: Omit<Share
         : lower ? `The lowest peak for your schedule is ${lower.peak} US AQI on ${formatDate(lower.start)} at ${formatTime(lower.start)}. Conditions still call for caution.`
           : 'A fresh forecast and two eligible hours are needed to suggest a time.'}</p>
     </div>
-    <a href="#planner" className="text-link">Open your daily plan <ArrowRight size={16} /></a>
+    {showLink && <a href="#planner" className="text-link">Open your daily plan <ArrowRight size={16} /></a>}
   </section>;
 }
 
@@ -82,7 +82,7 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
     {(env.airStatus === 'stale' || (env.air && now - env.air.fetchedAt > HOUR)) && <p className="notice">Forecast may be stale. Activity planning is paused.</p>}
     {finite.length ? <>
       <div className="forecast-tools">
-        <label className="inline-label">Metric <select aria-label="Forecast metric" value={metric} onChange={event => setMetric(event.target.value as typeof metric)}>
+        <label className="inline-label">Metric <select name="forecast-metric" aria-label="Forecast metric" value={metric} onChange={event => setMetric(event.target.value as typeof metric)}>
           {measurements.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
         </select></label>
         {change != null && <span className="trend">{change < 0 ? <ArrowDown size={15} /> : change > 0 ? <ArrowUp size={15} /> : null}
@@ -100,10 +100,16 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
           </div>
         </div>
         <figcaption className="chart-caption">
-          <span>{formatTime(hours[0].time)}</span><span>{formatTime(hours[Math.floor(hours.length / 2)].time)}</span><span>{formatTime(hours[hours.length - 1].time)}</span>
+          {[hours[0], hours[Math.floor(hours.length / 2)], hours[hours.length - 1]].map((point, index) => (
+            <span key={index}>
+              {duration > 24 || dateKey(hours[0].time) !== dateKey(hours[hours.length - 1].time)
+                ? `${formatDate(point.time)}, ${formatTime(point.time)}`
+                : formatTime(point.time)}
+            </span>
+          ))}
         </figcaption>
       </figure>
-      <div className="chart-detail"><label className="inline-label">Hour <select aria-label="Forecast hour" value={selected?.time ?? ''} onChange={event => setChosen(Number(event.target.value))}>
+      <div className="chart-detail"><label className="inline-label">Hour <select name="forecast-hour" aria-label="Forecast hour" value={selected?.time ?? ''} onChange={event => setChosen(Number(event.target.value))}>
         {hours.map(point => <option key={point.time} value={point.time}>{formatDate(point.time)} · {formatTime(point.time)}</option>)}</select></label>
         {selected && <strong>{detail(selected)}</strong>}</div>
       <details className="details"><summary>View forecast as a table</summary>

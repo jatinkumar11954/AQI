@@ -32,11 +32,18 @@ describe('assistant topic inference and deterministic wording', () => {
     expect(inferTopic('Prescribe asthma medication')).toBe('unsupported');
   });
 
-  it('prepends Hindi summary when requested and includes source metadata', () => {
-    const answer = composeAnswer('ventilation', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
-    expect(answer.text).toContain('खिड़की');
-    expect(answer.sources).toEqual(['clean']);
-    expect(answer.context).toContain('Current modeled US AQI 88');
+  it('prepends Hindi summary across topics when requested and includes source metadata', () => {
+    const vent = composeAnswer('ventilation', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
+    expect(vent.text).toContain('खिड़की');
+    expect(vent.sources).toEqual(['clean']);
+    expect(vent.context).toContain('Current modeled US AQI 88');
+
+    const src = composeAnswer('sources', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
+    expect(src.text).toContain('मॉडल');
+    expect(src.sources).toEqual(['model', 'relay', 'openaq', 'cpcb']);
+
+    const commute = composeAnswer('commute', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
+    expect(commute.text).toContain('प्रदूषण');
   });
 });
 

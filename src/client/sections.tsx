@@ -48,27 +48,27 @@ export function Planner({ env, now, profile, hindi, city, setProfile, chooseCity
         <fieldset className="check-fields"><legend>Who should the plan consider?</legend>
           {[['children', 'Children'], ['seniors', 'Older adults'], ['sensitive', 'Sensitive to air pollution']].map(([key, label]) => {
             const field = key as 'children' | 'seniors' | 'sensitive';
-            return <label key={key}><input type="checkbox" checked={profile[field]} onChange={event => set(field, event.target.checked)}/>{label}</label>;
+            return <label key={key}><input type="checkbox" name={field} checked={profile[field]} onChange={event => set(field, event.target.checked)}/>{label}</label>;
           })}
         </fieldset>
         <div className="form-grid">
           {(Object.keys(title) as (keyof typeof title)[]).map(field => <label key={field}>{title[field]}
-            <select value={profile[field]} onChange={event => set(field, event.target.value as Profile[typeof field])}>
+            <select name={field} value={profile[field]} onChange={event => set(field, event.target.value as Profile[typeof field])}>
               {selectOptions[field].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>)}
           {(['workStart', 'workEnd'] as const).map(field => <label key={field}>{field === 'workStart' ? 'Work starts (IST)' : 'Work ends (IST)'}
-            <select value={profile[field]} onChange={event => set(field, Number(event.target.value))}>
+            <select name={field} value={profile[field]} onChange={event => set(field, Number(event.target.value))}>
               {Array.from({ length: 24 }, (_, n) => <option key={n} value={n}>{String(n).padStart(2, '0')}:00</option>)}
             </select></label>)}
         </div>
         <p className="muted text-sm mt-4">Choose the same start and end hour when your work has no fixed block. Overnight shifts are supported.</p>
       </section>
-      <CleanerWindow env={env} now={now} profile={profile} loading={loading}/>
+      <CleanerWindow env={env} now={now} profile={profile} loading={loading} showLink={false}/>
     </div>
     <section className="card">
       <CardTitle icon={<ShieldCheck size={20}/>} title="Daily household checklist" sub={city.name + ' · ' + formatDate(now) + ' · ' + done + ' of ' + actions.length + ' complete'} />
       <div className="action-list">{actions.map(action => <article key={action.id}>
-        <label className="check-action"><input type="checkbox" checked={active.includes(action.id)} aria-label={action.title + ' completed'}
+        <label className="check-action"><input type="checkbox" name={'check-' + action.id} checked={active.includes(action.id)} aria-label={action.title + ' completed'}
           onChange={event => setChecked({ key, ids: event.target.checked ? [...new Set([...active, action.id])] : active.filter(id => id !== action.id) })}/><Check size={15}/></label>
         <div><ActionText action={action} hindi={hindi}/></div>
       </article>)}</div>
@@ -122,21 +122,33 @@ export function Improvement({ env, now }: { env: Environment; now: number }) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(DEFAULT_SCENARIO));
   const [currentHour, setCurrentHour] = useState('');
   const [alternativeHour, setAlternativeHour] = useState('');
-  const result = scenarioSchema.safeParse(Object.fromEntries(Object.entries(draft).map(([key, value]) => [key, value.trim() ? Number(value) : undefined])));
-  const scenario = result.data;
+  const parseField = (item: typeof fields[number]) => {
+    const raw = draft[item.key].trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < item.min || value > item.max) return null;
+    if (item.step === 1 && !Number.isInteger(value)) return null;
+    return value;
+  };
+  const petrolDraft = Object.fromEntries(fields.slice(0, 7).map(item => [item.key, parseField(item)]));
+  const petrolValid = Object.values(petrolDraft).every(value => value != null);
+  const currentMin = parseField(fields[7]);
+  const alternativeMin = parseField(fields[8]);
+  const minutesValid = currentMin != null && alternativeMin != null;
+  const scenario = petrolValid ? scenarioSchema.safeParse({ ...DEFAULT_SCENARIO, ...petrolDraft, currentMinutes: currentMin ?? 0, alternativeMinutes: alternativeMin ?? 0 }).data : undefined;
   const impact = scenario ? calculateImpact(scenario) : null;
   const hours = futureHours(env, now, 24).filter(item => item.pm25 != null);
-  const before = scenario && currentHour ? outdoorProxy(env, now, Number(currentHour), scenario.currentMinutes) : null;
-  const after = scenario && alternativeHour ? outdoorProxy(env, now, Number(alternativeHour), scenario.alternativeMinutes) : null;
+  const before = currentMin != null && currentHour ? outdoorProxy(env, now, Number(currentHour), currentMin) : null;
+  const after = alternativeMin != null && alternativeHour ? outdoorProxy(env, now, Number(alternativeHour), alternativeMin) : null;
   const total = impact ? Math.max(impact.currentCarbon, impact.alternativeCarbon, 1) : 1;
-  const chooseHour = (label: string, value: string, select: (value: string) => void) => <label>{label}
-    <select value={hours.some(hour => String(hour.time) === value) ? value : ''} onChange={event => select(event.target.value)}>
+  const chooseHour = (name: string, label: string, value: string, select: (value: string) => void) => <label>{label}
+    <select name={name} value={hours.some(hour => String(hour.time) === value) ? value : ''} onChange={event => select(event.target.value)}>
       <option value="">Choose an hour</option>
       {hours.map(item => <option key={item.time} value={item.time}>{formatDate(item.time)} · {formatTime(item.time)} IST</option>)}
     </select></label>;
   const field = (item: typeof fields[number]) => <label key={item.key}>{item.label}
-    <input type="number" min={item.min} max={item.max} step={item.step} value={draft[item.key]} required
-      aria-invalid={draft[item.key] === '' || Number(draft[item.key]) < item.min || Number(draft[item.key]) > item.max || (item.step === 1 && !Number.isInteger(Number(draft[item.key])))}
+    <input type="number" name={item.key} min={item.min} max={item.max} step={item.step} value={draft[item.key]} required
+      aria-invalid={parseField(item) == null}
       onChange={event => setDraft(previous => ({ ...previous, [item.key]: event.target.value }))}/>
   </label>;
   return <div className="section-stack">
@@ -159,7 +171,7 @@ export function Improvement({ env, now }: { env: Environment; now: number }) {
             <Metric label={impact.carbon >= 0 ? 'Tailpipe CO₂ avoided' : 'Extra tailpipe CO₂'} value={fmt.format(Math.abs(impact.carbon)) + ' kg'} detail="Petrol component only" />
             <Metric label={impact.savings >= 0 ? 'Fuel & fare savings' : 'Extra fuel & fare cost'} value={'₹' + fmt.format(Math.abs(impact.savings))} detail={fmt.format(Math.abs(impact.litres)) + ' L ' + (impact.litres >= 0 ? 'less petrol' : 'more petrol')} />
           </div>
-          <div className="compare-bars" aria-label="Current and alternative petrol tails">
+          <div className="compare-bars" aria-label="Current and alternative petrol tailpipe CO₂">
             {[['Current', impact.currentCarbon], ['Alternative', impact.alternativeCarbon]].map(([label, amount]) =>
               <div key={label}><span>{label}</span><div className="compare-track" aria-hidden="true"><span style={{width: 100 * Number(amount) / total + '%'}}/></div><strong>{fmt.format(Number(amount))} kg</strong></div>
             )}
@@ -175,7 +187,8 @@ export function Improvement({ env, now }: { env: Environment; now: number }) {
     </div>
     <section className="card">
       <CardTitle icon={<Clock3 size={20}/>} title="Outdoor PM2.5 comparison" sub="Time outdoors × forecast concentration" />
-      <div className="form-grid four">{chooseHour('Current forecast hour', currentHour, setCurrentHour)}{chooseHour('Alternative forecast hour', alternativeHour, setAlternativeHour)}{fields.slice(7).map(field)}</div>
+      <div className="form-grid four">{chooseHour('current-hour', 'Current forecast hour', currentHour, setCurrentHour)}{chooseHour('alternative-hour', 'Alternative forecast hour', alternativeHour, setAlternativeHour)}{fields.slice(7).map(field)}</div>
+      {!minutesValid && <p className="notice" role="status">Enter whole outdoor minutes between 0 and 60.</p>}
       <div className="impact-grid proxy-results">
         <Metric label="Current outdoor proxy" value={before == null ? '—' : fmt.format(before) + ' µg·h/m³'}/>
         <Metric label="Alternative outdoor proxy" value={after == null ? '—' : fmt.format(after) + ' µg·h/m³'}/>
@@ -234,7 +247,7 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
       <div className="conversation" role="log" aria-label="Assistant responses">
         {entries.map(({ question: text, answer }, index) => <article key={index + text}>
           <div className="question-bubble">{text}</div>
-          <div className="answer-bubble"><span className="eyebrow">{answer.mode === 'gemini' ? 'GEMINI · SOURCE-GROUNDED' : answer.status ? labels[answer.status] : 'Rules answer'}</span>
+          <div className="answer-bubble"><span className="eyebrow">{answer.mode === 'gemini' ? (answer.sources.length ? 'GEMINI · SOURCE-GROUNDED' : 'GEMINI · GUIDANCE SCOPE') : answer.status ? labels[answer.status] : 'Rules answer'}</span>
             <p>{answer.text}</p>{answer.followUp && <p>{answer.followUp}</p>}<p className="muted">{answer.context}</p>
             <div className="answer-sources">{answer.sources.map(id => <SourceLink key={id} id={id}/>)}</div></div>
         </article>)}
@@ -246,7 +259,7 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
       {error && <p className="notice" role="alert">{error}</p>}
       <form className="assistant-form" onSubmit={submit}>
         <label htmlFor={fieldId}>Your question</label>
-        <div className="search"><input id={fieldId} value={question} onChange={event => setQuestion(event.target.value)} maxLength={350} placeholder="Ask about your local air…" required minLength={2}/>
+        <div className="search"><input id={fieldId} name="question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={350} placeholder="Ask about your local air…" required minLength={2}/>
           <button className="button primary" disabled={Boolean(pending) || question.trim().length < 2}><Send size={17}/> Send</button></div>
       </form>
     </section>

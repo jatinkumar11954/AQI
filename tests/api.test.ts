@@ -85,14 +85,33 @@ it('returns stale cached air during outage and null after its maximum age', asyn
   expect(fetcher.mock.calls.filter(([target]) => target.hostname === 'air-quality-api.open-meteo.com')).toHaveLength(5);
 });
 
-it('filters geocoding to Indian results and returns an explicit empty list', async () => {
+it('filters geocoding to Indian results, deduplicates identical labels, and returns an empty list', async () => {
   const fetcher = vi.fn(async target => json({ results: target.searchParams.get('name') === 'Mumbai' ? [
     { name: 'Mumbai', admin1: 'Maharashtra', latitude: 19.08, longitude: 72.88, country_code: 'IN' },
+    { name: 'Mumbai', admin1: 'Maharashtra', latitude: 19.09, longitude: 72.89, country_code: 'IN' },
     { name: 'Dubai', latitude: 25.2, longitude: 55.3, country_code: 'AE' },
   ] : [] }));
   const app = createApp({ fetcher });
-  expect(await (await app.request('/api/places?q=Mumbai')).json()).toMatchObject({ places: [{ name: 'Mumbai' }] });
+  expect(await (await app.request('/api/places?q=Mumbai')).json()).toEqual({ places: [{ name: 'Mumbai', state: 'Maharashtra', lat: 19.08, lon: 72.88 }] });
   expect(await (await app.request('/api/places?q=Noplace')).json()).toEqual({ places: [] });
+});
+
+it('skips OpenAQ monitors whose PM sensors have no recent readings and falls back to CPCB relay', async () => {
+  const freshUtc = new Date((NOW - 900) * 1000).toISOString();
+  const staleUtc = new Date((NOW - 60 * HOUR) * 1000).toISOString();
+  const fetcher = vi.fn(async (target: URL) => {
+    if (target.hostname !== 'api.openaq.org') return baseFeed(target);
+    if (target.pathname.endsWith('/latest')) {
+      return json({ results: [{ sensorsId: 62, value: 40, datetime: { utc: staleUtc } }] });
+    }
+    return json({ results: [{
+      id: 8, name: 'Test', distance: 200, provider: { name: 'CPCB' }, datetimeLast: { utc: freshUtc },
+      sensors: [{ id: 62, parameter: { name: 'pm25', units: 'µg/m³' } }],
+    }] });
+  });
+  const app = createApp({ fetcher, clock: () => NOW });
+  const reply = await (await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' })).json();
+  expect(reply).toMatchObject({ stationStatus: 'fresh', station: { kind: 'cpcb-relay', aqi: 123 } });
 });
 
 it('sends grounded context to Gemini with a server-only key and renders approved text', async () => {

@@ -158,8 +158,22 @@ describe('ventilation, dailyActions, and catalog sources', () => {
       expect(SOURCES[action.source]).toBeDefined();
       expect(action.title.length).toBeGreaterThan(3);
       expect(action.body.length).toBeGreaterThan(10);
+      expect(action.hindi?.length).toBeGreaterThan(5);
     }
     expect(CITIES.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('tailors family guidance copy separately for older adults vs children', () => {
+    const seniorActions = dailyActions(makeEnv(), { ...DEFAULT_PROFILE, seniors: true }, MIDNIGHT_IST);
+    const seniorFamily = seniorActions.find(item => item.id === 'family')!;
+    expect(seniorFamily.title).toBe('Plan for older family members');
+    expect(seniorFamily.body.toLowerCase()).not.toContain('school');
+    expect(seniorFamily.body.toLowerCase()).not.toContain('outdoor play');
+
+    const childActions = dailyActions(makeEnv(), { ...DEFAULT_PROFILE, children: true }, MIDNIGHT_IST);
+    const childFamily = childActions.find(item => item.id === 'family')!;
+    expect(childFamily.title).toBe('Plan for school and play');
+    expect(childFamily.body.toLowerCase()).toContain('school');
   });
 });
 

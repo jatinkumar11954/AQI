@@ -9,6 +9,7 @@ test-results/
 *.log
 *.tmp
 .wrangler/
+.vercel/
 .openai/
 .codex/
 .gemini/

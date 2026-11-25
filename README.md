@@ -74,6 +74,15 @@ The production frontend is on [GitHub Pages](https://jatinkumar11954.github.io/A
 
 A Pages build without an API origin fetches public feeds directly and uses Rules mode. Free Render instances may need about a minute to wake after being idle. Docker and Cloudflare Worker build targets are also included. [Render free instance limits](https://render.com/docs/free)
 
+### Vercel Same-Origin Alternative (Recommended for Lower Cold-Start Latency)
+
+[vercel.json](vercel.json) and [api/index.ts](api/index.ts) deploy the Vite client (`dist/client`) and Hono API (`/api/*`) on the same HTTPS origin in Vercel’s Mumbai (`bom1`) region under the free Hobby plan (no credit card required, Fluid Compute + Node.js bytecode caching).
+
+1. Import the repository in Vercel (or run `vercel link`) and set server-only environment variables (`OPENAQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_DAILY_LIMIT`) in Vercel Project Settings. Do not expose keys with `VITE_*`.
+2. Vercel builds with `vite build` (`dist/client`) and routes `/api/(.*)` to `api/index.ts`, using `x-vercel-forwarded-for` for per-client rate limiting.
+3. For automated CI-gated GitHub Actions deploys, set repository variable `SAANS_VERCEL_DEPLOY=true` and secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` for [the Vercel workflow](.github/workflows/vercel.yml). Roll back immediately via Vercel Dashboard (**Instant Rollback**) or `vercel rollback`.
+4. Retain the Render service until `node scripts/smoke.mjs <vercel-url>` and browser journeys pass on the Vercel deployment.
+
 ## Documentation & PromptWars Artifacts
 
 - [Requirements & Verification Matrix](docs/requirements.md)

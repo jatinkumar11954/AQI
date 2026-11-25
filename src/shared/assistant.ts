@@ -35,7 +35,8 @@ export function composeAnswer(topic: Topic, profile: Profile, env: Environment, 
     filtration: INDOOR[profile.budget][0], impact: SUSTAINABLE[0],
   };
   if (topic === 'sources') {
-    return { text: 'The forecast uses the Open-Meteo CAMS US AQI. The station panel shows either OpenAQ particulate measurements or India-scale sub-indices relayed from CPCB station data. The CPCB portal reports the official India National AQI.', context, sources: ['model', 'relay', 'openaq', 'cpcb'] as SourceId[] };
+    const prefix = language === 'hi' ? 'यहाँ मॉडल (US AQI) और स्टेशन के आँकड़े (OpenAQ और CPCB) अलग-अलग दिखाए गए हैं। ' : '';
+    return { text: prefix + 'The forecast uses the Open-Meteo CAMS US AQI. The station panel shows either OpenAQ particulate measurements or India-scale sub-indices relayed from CPCB station data. The CPCB portal reports the official India National AQI.', context, sources: ['model', 'relay', 'openaq', 'cpcb'] as SourceId[] };
   }
   if (topic === 'unsupported') {
     return { text: language === 'hi'
