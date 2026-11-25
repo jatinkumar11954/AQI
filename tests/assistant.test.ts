@@ -44,6 +44,9 @@ describe('assistant topic inference and deterministic wording', () => {
 
     const commute = composeAnswer('commute', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
     expect(commute.text).toContain('प्रदूषण');
+
+    const unsupported = composeAnswer('unsupported', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
+    expect(unsupported.text).toContain('खिड़की');
   });
 });
 

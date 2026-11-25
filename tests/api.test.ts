@@ -274,3 +274,55 @@ it('coalesces a burst of independent clients using the same city', async () => {
   }
   expect(fetcher).toHaveBeenCalledTimes(3);
 });
+
+it('rejects oversized Content-Length upstream responses and drops out-of-window OpenAQ readings', async () => {
+  const oversizedFetcher = vi.fn(async () => new Response('ok', { status: 200, headers: { 'Content-Length': String(300 * 1024) } }));
+  const oversizedApp = createApp({ fetcher: oversizedFetcher, clock: () => NOW });
+  expect((await oversizedApp.request('/api/places?q=Pune')).status).toBe(503);
+  expect(oversizedFetcher).toHaveBeenCalledTimes(1);
+
+  const staleSensorFetcher = vi.fn(async (target: URL) => {
+    if (target.pathname === '/v3/locations') {
+      return json({
+        results: [
+          {
+            id: 10, name: 'Null Last Station', distance: 500, provider: { name: 'CPCB' },
+            datetimeLast: null, sensors: [{ id: 1, parameter: { name: 'pm25', units: 'µg/m³' } }],
+          },
+          {
+            id: 11, name: 'Old Reading Station', distance: 1200, provider: { name: 'CPCB' },
+            datetimeLast: { utc: new Date((NOW - 300) * 1000).toISOString() },
+            sensors: [{ id: 2, parameter: { name: 'pm25', units: 'µg/m³' } }],
+          },
+        ],
+      });
+    }
+    if (target.pathname === '/v3/locations/11/latest') {
+      return json({
+        results: [
+          { sensorsId: 2, value: 40, datetime: { utc: new Date((NOW - 72 * HOUR) * 1000).toISOString() } },
+        ],
+      });
+    }
+    if (target.hostname === 'api.dharun.dev') return json({ data: [] });
+    return baseFeed(target);
+  });
+  const app = createApp({ fetcher: staleSensorFetcher, clock: () => NOW });
+  const body = await (await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' })).json();
+  expect(body).toMatchObject({ stationStatus: 'no-station', station: null });
+});
+
+it('serves stale cached entries when in-flight fan-out reaches the concurrency cap', async () => {
+  const { createCache } = await import('../src/shared/upstream');
+  let now = 1000;
+  const cache = createCache<string>(32, 10, 100, () => now);
+  await cache('seeded', async () => 'cached-val');
+  now = 1020; // expired TTL (10s) but within staleTtl (100s)
+  let release!: () => void;
+  const barrier = new Promise<void>(resolve => { release = resolve; });
+  const pending = Array.from({ length: 16 }, (_, i) => cache('k' + i, async () => { await barrier; return 'v' + i; }));
+  await expect(cache('seeded', async () => 'fresh')).resolves.toEqual({ value: 'cached-val', stale: true });
+  await expect(cache('overflow', async () => 'fresh')).rejects.toMatchObject({ status: 503 });
+  release();
+  await Promise.all(pending);
+});

@@ -83,6 +83,32 @@ describe('Pages network recovery', () => {
     const answer = await api.askSaansAI('Can children play outside?', location, DEFAULT_PROFILE, 'en', modeled(), signal);
     expect(answer).toMatchObject({ mode: 'rules', status: 'unconfigured', sources: ['clean'] });
     expect(fetcher).not.toHaveBeenCalled();
+
+    const geocoder = vi.fn(async (input: RequestInfo | URL) => {
+      const href = String(input);
+      if (href.includes('geocoding-api.open-meteo.com')) {
+        return Response.json({
+          results: [{ name: 'Pune', admin1: 'Maharashtra', country_code: 'IN', latitude: 18.52, longitude: 73.86 }],
+        });
+      }
+      return new Response('unavailable', { status: 503 });
+    });
+    vi.stubGlobal('fetch', geocoder);
+    await expect(api.searchCities('Pune', signal)).resolves.toEqual([
+      { name: 'Pune', state: 'Maharashtra', lat: 18.52, lon: 73.86 },
+    ]);
+  });
+
+  it('calls /api/places directly in same-origin production mode', async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL) => Response.json({
+      places: [{ name: 'Pune', state: 'Maharashtra', lat: 18.52, lon: 73.86 }],
+    }));
+    vi.stubEnv('MODE', 'production');
+    vi.stubGlobal('fetch', fetcher);
+    vi.resetModules();
+    const api = await import('../src/client/data');
+    await expect(api.searchCities('Pune', new AbortController().signal)).resolves.toHaveLength(1);
+    expect(fetcher.mock.calls[0][0]).toBe('/api/places?q=Pune');
   });
 
   it('rethrows non-transient 400 validation errors on /api/ask', async () => {

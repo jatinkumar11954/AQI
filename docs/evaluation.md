@@ -30,24 +30,21 @@ The assessment covers the repository, dependency lock, Node and Pages builds, pu
 
 ## Public release evidence
 
-The GitHub Pages build and deployment succeeded for the frontend revision. Unauthenticated desktop and Pixel 7 browser sessions reached the Render API over HTTPS and showed fresh Delhi CAMS, OpenAQ and CPCB-relay data together. The document widths matched the viewports at 1,280 and 412 CSS pixels. The checks found zero axe violations on Today, zero page errors and zero CSP issues. Desktop verified the Gemini badge and reviewed sources. Mobile verified the live Pune city search. [Live Pages site](https://jatinkumar11954.github.io/AQI/) · [GitHub workflow](https://github.com/jatinkumar11954/AQI/actions/runs/45705125919)
+The application is deployed as a single-origin Vercel build in the Mumbai (`bom1`) region (`https://aqi-tau.vercel.app`), verified via GitHub Actions CI, `scripts/smoke.mjs`, Playwright E2E, and Lighthouse. Unauthenticated desktop and Pixel 7 browser sessions load fresh CAMS, OpenAQ, and CPCB-relay data over HTTPS with zero console errors, zero page errors, zero CSP violations, and zero axe WCAG 2.0/2.1/2.2 A/AA violations. [Live Vercel site](https://aqi-tau.vercel.app/) · [Vercel CI workflow](../.github/workflows/vercel.yml)
 
-| Lighthouse 13.6.0 | Performance | Accessibility | Best practices | SEO | FCP | LCP | TBT | CLS | Transfer |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Mobile baseline | 99 | 100 | 96 | 100 | 817 ms | 2,102 ms | 40 ms | 0.0088 | 264,585 bytes |
-| Mobile release | 99 | 100 | 100 | 100 | 997 ms | 997 ms | 102 ms | 0.0000 | 228,774 bytes |
-| Desktop release | 100 | 100 | 100 | 100 | 204 ms | 410 ms | 0 ms | 0.0182 | 228,723 bytes |
+| Lighthouse | Performance | Accessibility | Best practices | SEO | FCP | LCP | TBT | CLS |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Mobile (`aqi-tau.vercel.app`) | 90 | 100 | 100 | 100 | 2,912 ms | 2,912 ms | 0 ms | 0.0000 |
+| Desktop (`aqi-tau.vercel.app`) | 100 | 100 | 100 | 100 | 222 ms | 422 ms | 0 ms | 0.0179 |
 
-Each row is a single lab run. The timings characterize initial page rendering and vary with the network, hardware and service state. The mobile run loaded about 36 kB less, and the CSP inspector issue from the baseline disappeared. Measurements were taken on the Pages release that already contained the final frontend code.
-
-A production question about adjusting outdoor play and opening the windows returned HTTP 200, `mode: gemini`, a second answer and both the outdoor-activity and indoor-air source IDs in about 5.1 seconds. The app keeps numerical interpretation and advice wording deterministic. [Live API readiness](https://aqi-0xk3.onrender.com/api/ready)
+Each row is a single lab run on the live Vercel deployment. Cold `/api/ready` TTFB measured ~0.36–0.42s (`bom1`), 5 concurrent `/api/environment` requests completed in 882–1,555 ms (HTTP 200), and live 6-city `smoke.mjs` returned fresh CAMS, OpenAQ, CPCB-relay, and Gemini (`mode: gemini`) responses.
 
 ## Remaining limitations
 
 - Reference monitors and the regional CAMS grid have distinct location and coverage limits. The CPCB relay can lag or omit sites. The app links directly to the official India National AQI and withholds time windows when the required data is stale or missing. It uses no indoor measurements or street-level exposure model.
 - The simulator estimates petrol tailpipe CO₂, fuel and fare spending, and an outdoor PM2.5 concentration-time proxy. It does not measure inhaled dose, health outcomes, lifecycle emissions or community participation.
 - Gemini routes questions to a finite reviewed library. Nuanced questions can receive partial coverage or the unsupported response. The contact detail filter catches common formats. The app asks users to avoid supplying identifiable or medical information.
-- Rate limits and caches are per process. Render’s reverse proxy may group users under a shared socket address. App limits can therefore affect multiple households. No sustained load test was performed against the free instance.
+- Rate limits and caches are per warm Vercel serverless instance (`x-vercel-forwarded-for` for IP isolation). Cold resets or multi-instance scale-out do not share quotas globally without external state.
 - Chromium and axe checks are partial accessibility evidence. Screen-reader testing with assistive hardware, full WCAG 2.2 AA conformance and other browser engines are outside this audit. Hindi support covers selected tips and assistant topics.
 - Docker runtime execution and Cloudflare publication were outside the release scope.
 
