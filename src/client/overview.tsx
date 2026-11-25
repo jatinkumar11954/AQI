@@ -8,10 +8,10 @@ type Shared = { env: Environment; now: number; profile: Profile; hindi: boolean 
 const format = (value: number | null | undefined, places = 0) => value == null ? '—' : new Intl.NumberFormat('en-IN', { maximumFractionDigits: places }).format(value);
 const dateTime = (time: number) => `${formatDate(time)}, ${formatTime(time)} IST`;
 const safeLead = (aqi: number | null, conflict: boolean) => {
+  if (aqi != null && aqi > 300) return 'Avoid outdoor physical activity and follow local advisories.';
+  if (aqi != null && aqi > 200) return 'Move strenuous activity indoors and limit non-essential outdoor time.';
   if (conflict) return 'A nearby station reports elevated pollution. Recheck local conditions before any optional outdoor activity.';
   if (aqi == null) return 'Check the official local AQI before planning outdoor activities.';
-  if (aqi > 300) return 'Avoid outdoor physical activity and follow local advisories.';
-  if (aqi > 200) return 'Move strenuous activity indoors and limit non-essential outdoor time.';
   if (aqi > 150) return 'Reduce prolonged outdoor exertion. Take extra care with children and older adults.';
   if (aqi > 100) return 'Sensitive groups should reduce prolonged or heavy outdoor exertion.';
   if (aqi > 50) return 'Check local conditions before strenuous activity, especially if you are sensitive to pollution.';

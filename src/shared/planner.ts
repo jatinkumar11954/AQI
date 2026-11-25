@@ -57,7 +57,8 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
   const candidates: Window[] = [];
   const eligible = (point: AirPoint) => {
     const h = localHour(point.time);
-    return point.aqi != null && h >= 7 && h < 20 && !atWork(profile, h);
+    const endHour = localHour(point.time + HOUR - 1);
+    return point.aqi != null && h >= 7 && endHour < 20 && !atWork(profile, h) && !atWork(profile, endHour);
   };
   for (let index = 1; index < hours.length; index++) {
     const earlier = hours[index - 1];
@@ -69,7 +70,7 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
   const lower = candidates[0] ?? null;
   const current = modelNow(env, now)?.aqi;
   // Don't promote an outing during a currently hazardous episode or conflicting monitor readings.
-  const usable = lower && lower.peak <= ceiling && current != null && current <= 200
+  const usable = lower && lower.peak <= ceiling && current != null && current <= (isSensitive(profile) ? 100 : 150)
     && !nearbyParticleCaution(env, now) ? lower : null;
   return { lower, usable };
 }

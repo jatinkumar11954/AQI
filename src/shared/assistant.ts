@@ -10,7 +10,6 @@ export type Answer = {
 
 export function inferTopic(question: string): Topic {
   const rules: [Topic, RegExp][] = [
-    ['sources', /aqi|data|measur|source|standard|स्टेशन|आँकड़े|माप/i],
     ['ventilation', /ventilat|windows?|air out|खिड़की/i],
     ['cooking', /cook|kitchen|incense|fry|खाना|धुआँ/i],
     ['filtration', /hepa|filter|purif|budget|फ़िल्टर|बजट/i],
@@ -18,6 +17,7 @@ export function inferTopic(question: string): Topic {
     ['family', /child|kid|school|senior|elder|family|बच्च|बुज़ुर्ग/i],
     ['outdoors', /play|walk|run|exercis|outdoor|outside|errand|बाहर|टहल/i],
     ['impact', /impact|petrol|emission|saving|carbon|बचत/i],
+    ['sources', /aqi|data|measur|source|standard|स्टेशन|आँकड़े|माप/i],
   ];
   return rules.find(([, expression]) => expression.test(question))?.[0] ?? 'unsupported';
 }

@@ -162,7 +162,6 @@ select {
   text-decoration: none;
   color: #dbe8df;
   font-weight: 500;
-  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .navigation a:hover {
@@ -1351,10 +1350,11 @@ select {
 
 @media (max-width: 980px) {
   .shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
+    min-width: 0;
     position: static;
     height: auto;
     padding: 0.9rem 1rem;
@@ -1415,6 +1415,13 @@ select {
 }
 
 @media (max-width: 600px) {
+  .breadcrumb { display: none; }
+  .topbar { justify-content: flex-end; position: static; }
+  .top-actions { min-width: 0; }
+  .location > span { overflow: hidden; text-overflow: ellipsis; }
+  .location { min-width: 0; }
+  .dashboard > *, .section-grid > * { min-width: 0; }
+
   .hero-footer,
   .weather-grid,
   .readings {

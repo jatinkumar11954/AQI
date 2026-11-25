@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { pointSchema, profileSchema } from '../shared/model';
 import { createEnvironment, type Keys } from './environment';
 import { createAssistant } from './gemini';
-import { createLimiter, UpstreamError } from './upstream';
+import { createLimiter, UpstreamError, type Fetcher } from './upstream';
 
 export type Runtime = Keys & { clientAddress?: string };
 const questionSchema = z.object({
@@ -19,7 +19,7 @@ const issue = (code: string, message: string) => ({ error: { code, message } });
 
 export function createApp({
   fetcher = globalThis.fetch, clock = () => Math.floor(Date.now() / 1000),
-}: { fetcher?: typeof fetch; clock?: () => number } = {}) {
+}: { fetcher?: Fetcher; clock?: () => number } = {}) {
   const environment = createEnvironment(fetcher, clock);
   const answer = createAssistant(fetcher, clock);
   const limit = createLimiter(clock);

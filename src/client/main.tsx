@@ -97,7 +97,7 @@ function App() {
     <a href="#main-title" className="skip" onClick={event => { event.preventDefault(); document.getElementById('main-title')?.focus(); }}>Skip to content</a>
     <div className="shell">
       <aside className="sidebar">
-        <a className="brand" href="#today" aria-label="SaansAI home">
+        <a className="brand" href="#today">
           <span className="mark"><Wind size={22} /></span>
           <span><strong>Saans<span>AI</span></strong><small>URBAN AIR ASSISTANT</small></span>
         </a>
@@ -116,7 +116,7 @@ function App() {
           <span className="breadcrumb"><Activity size={17} /> SaansAI <span>/</span> {pages.find(item => item.id === page)?.title}</span>
           <div className="top-actions">
             <button className="button location" onClick={() => setLocationOpen(true)}><MapPin size={17} /><span>{city.name}, India</span><ChevronDown size={15} /></button>
-            <button className="button language" aria-pressed={hindi} onClick={() => setHindi(!hindi)} aria-label="Toggle Hindi quick tips">हिंदी</button>
+            <button className="button language" aria-pressed={hindi} onClick={() => setHindi(!hindi)} aria-label="हिंदी — Toggle Hindi quick tips"><span lang="hi">हिंदी</span></button>
           </div>
         </header>
         <main className="content">

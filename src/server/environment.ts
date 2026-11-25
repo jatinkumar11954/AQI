@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type Station, type Weather } from '../shared/model';
-import { createCache, createLimiter, createTransport, UpstreamError, url } from './upstream';
+import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream';
 
 export type Keys = { OPENAQ_API_KEY?: string; GEMINI_API_KEY?: string; GEMINI_MODEL?: string };
 const scalar = z.number().min(0);
@@ -47,7 +47,7 @@ function hasPm(parameter: { name: string; units: string }) {
   return ['pm25', 'pm10'].includes(parameter.name) && ['µg/m³', 'μg/m³', 'ug/m3'].includes(parameter.units);
 }
 
-export function createEnvironment(fetcher: typeof fetch, clock: () => number) {
+export function createEnvironment(fetcher: Fetcher, clock: () => number) {
   const request = createTransport(fetcher);
   const airCache = createCache<ReturnType<typeof parseAir>>(384, 480, 3 * HOUR, clock);
   const weatherCache = createCache<Weather>(384, 720, 2 * HOUR, clock);

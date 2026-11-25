@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { build } from 'esbuild';
 
@@ -49,8 +49,12 @@ await build({
   platform: 'neutral',
   mainFields: ['module', 'main'],
   conditions: ['workerd', 'worker', 'browser'],
-  define: { __SAANS_WORKER_BUNDLE__: 'true' },
+  minify: true,
+  target: 'es2022',
   outfile: 'dist/worker.mjs',
 });
+
+mkdirSync('dist/server', { recursive: true });
+copyFileSync('dist/worker.mjs', 'dist/server/index.js');
 
 console.log('Built dist/worker.mjs with ' + Object.keys(manifest).length + ' embedded static assets.');

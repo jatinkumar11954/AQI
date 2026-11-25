@@ -6,7 +6,11 @@ import { staticAsset } from '../src/server/worker-assets.mjs';
 
 const NOW = 1795631400;
 
-function makeMockFetcher({ weatherFails = false, openaqStatus = 200 }: { weatherFails?: boolean; openaqStatus?: number } = {}) {
+function makeMockFetcher({
+  weatherFails = false,
+  openaqStatus = 200,
+  relayStatus = 404,
+}: { weatherFails?: boolean; openaqStatus?: number; relayStatus?: number } = {}) {
   return vi.fn(async (input: RequestInfo | URL) => {
     const href = String(input);
     if (href.includes('geocoding-api.open-meteo.com')) {
@@ -60,6 +64,20 @@ function makeMockFetcher({ weatherFails = false, openaqStatus = 200 }: { weather
         ],
       }), { status: 200 });
     }
+    if (href.includes('api.dharun.dev/v1/air-quality')) {
+      if (relayStatus !== 200) return new Response('unavailable', { status: relayStatus });
+      return new Response(JSON.stringify({
+        data: [
+          {
+            station: 'Karve Road, Pune',
+            updated: '2026-11-25 23:45:00',
+            distance_km: 2.4,
+            aqi: 118,
+            pollutants: { 'PM2.5': { avg: 118 }, PM10: { avg: 94 } },
+          },
+        ],
+      }), { status: 200 });
+    }
     return new Response('not found', { status: 404 });
   });
 }
@@ -86,9 +104,9 @@ describe('HTTP API contract and error boundaries', () => {
     expect(data.places[0].name).toBe('Pune');
   });
 
-  it('handles partial upstream failures and OpenAQ station observations', async () => {
+  it('handles partial upstream failures, OpenAQ stations, and CPCB relay fallback', async () => {
     const partialApp = createApp({
-      fetcher: makeMockFetcher({ weatherFails: true, openaqStatus: 401 }) as unknown as typeof fetch,
+      fetcher: makeMockFetcher({ weatherFails: true, openaqStatus: 401, relayStatus: 503 }) as unknown as typeof fetch,
       clock: () => NOW,
     });
     const invalidCoord = await partialApp.fetch(new Request('http://localhost/api/environment?lat=51.5&lon=-0.1'));
@@ -107,10 +125,28 @@ describe('HTTP API contract and error boundaries', () => {
     const fullRes = await fullApp.fetch(new Request('http://localhost/api/environment?lat=18.52&lon=73.86'), {
       OPENAQ_API_KEY: 'valid-key',
     });
-    const fullBody = await fullRes.json() as { stationStatus: string; station: { name: string; pm25: { value: number } } };
+    const fullBody = await fullRes.json() as {
+      stationStatus: string;
+      station: { kind: string; name: string; pm25: { value: number } };
+    };
     expect(fullBody.stationStatus).toBe('fresh');
+    expect(fullBody.station.kind).toBe('openaq');
     expect(fullBody.station.name).toBe('Shivajinagar Station');
     expect(fullBody.station.pm25.value).toBe(33.5);
+
+    const relayApp = createApp({
+      fetcher: makeMockFetcher({ relayStatus: 200 }) as unknown as typeof fetch,
+      clock: () => NOW,
+    });
+    const relayRes = await relayApp.fetch(new Request('http://localhost/api/environment?lat=18.52&lon=73.86'), {});
+    const relayBody = await relayRes.json() as {
+      stationStatus: string;
+      station: { kind: string; name: string; aqi: number };
+    };
+    expect(relayBody.stationStatus).toBe('fresh');
+    expect(relayBody.station.kind).toBe('cpcb-relay');
+    expect(relayBody.station.name).toBe('Karve Road, Pune');
+    expect(relayBody.station.aqi).toBe(118);
   });
 
   it('enforces origin, content-type, body-size, and rate limits on /api/ask', async () => {
@@ -151,14 +187,14 @@ describe('HTTP API contract and error boundaries', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      }));
+      }), { clientAddress: 'valid-run' });
       expect(ok.status).toBe(200);
     }
     const limited = await app.fetch(new Request('http://localhost/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    }));
+    }), { clientAddress: 'valid-run' });
     expect(limited.status).toBe(429);
   });
 });
@@ -181,18 +217,18 @@ describe('Worker entrypoint and staticAsset helper', () => {
     };
     (globalThis as unknown as { __SAANS_ASSETS__?: typeof manifest }).__SAANS_ASSETS__ = manifest;
     try {
-      const indexRes = await staticAsset(new Request('https://saans.example/'), '/');
+      const indexRes = staticAsset(new Request('https://saans.example/'), '/');
       expect(indexRes.status).toBe(200);
       expect(indexRes.headers.get('content-security-policy')).toContain("default-src 'self'");
       expect(await indexRes.text()).toContain('SaansAI');
 
-      const assetRes = await staticAsset(new Request('https://saans.example/assets/app.js'), '/assets/app.js');
+      const assetRes = staticAsset(new Request('https://saans.example/assets/app.js'), '/assets/app.js');
       expect(assetRes.headers.get('cache-control')).toContain('immutable');
 
-      const traversal = await staticAsset(new Request('https://saans.example/../secret'), '/../secret');
+      const traversal = staticAsset(new Request('https://saans.example/../secret'), '/../secret');
       expect(traversal.status).toBe(403);
 
-      const method = await staticAsset(new Request('https://saans.example/', { method: 'POST' }), '/');
+      const method = staticAsset(new Request('https://saans.example/', { method: 'POST' }), '/');
       expect(method.status).toBe(405);
     } finally {
       delete (globalThis as unknown as { __SAANS_ASSETS__?: typeof manifest }).__SAANS_ASSETS__;

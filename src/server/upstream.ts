@@ -2,7 +2,35 @@ export class UpstreamError extends Error {
   constructor(readonly status: number) { super('Upstream request failed'); }
 }
 
-export function createTransport(fetcher: typeof fetch) {
+export type Fetcher = (url: URL, init?: RequestInit) => Promise<Response>;
+
+const MAX_PROVIDER_BYTES = 256 * 1024;
+async function boundedJson(response: Response) {
+  if (Number(response.headers.get('Content-Length')) > MAX_PROVIDER_BYTES || !response.body) {
+    await response.body?.cancel();
+    throw new UpstreamError(422);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let content = '';
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) return JSON.parse(content + decoder.decode());
+      size += value.byteLength;
+      if (size > MAX_PROVIDER_BYTES) {
+        await reader.cancel();
+        throw new UpstreamError(422);
+      }
+      content += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export function createTransport(fetcher: Fetcher) {
   return async function request(url: URL, init: RequestInit = {}, retries = 1, timeout = 2600): Promise<unknown> {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -11,7 +39,7 @@ export function createTransport(fetcher: typeof fetch) {
           await response.body?.cancel();
           throw new UpstreamError(response.status);
         }
-        return await response.json();
+        return await boundedJson(response);
       } catch (error) {
         if (attempt >= retries || (error instanceof UpstreamError && error.status < 500 && error.status !== 408)) throw error;
         await new Promise(resolve => setTimeout(resolve, 160));

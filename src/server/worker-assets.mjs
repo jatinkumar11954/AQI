@@ -1,17 +1,3 @@
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
-  '.json': 'application/json; charset=utf-8',
-};
-
 const CSP = "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
 
 function applyHeaders(headers, pathname) {
@@ -19,6 +5,7 @@ function applyHeaders(headers, pathname) {
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-Frame-Options', 'DENY');
   headers.set('Referrer-Policy', 'no-referrer');
+  headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
   headers.set(
     'Cache-Control',
     pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
@@ -29,7 +16,7 @@ function readBundledAsset(pathname) {
   const manifest = globalThis.__SAANS_ASSETS__;
   if (!manifest) return null;
   const normalized = pathname === '/' ? '/index.html' : pathname;
-  const entry = manifest[normalized] ?? (!normalized.includes('.') ? manifest['/index.html'] : undefined);
+  const entry = Object.hasOwn(manifest, normalized) ? manifest[normalized] : undefined;
   if (!entry) return null;
   const binary = atob(entry.base64);
   const bytes = new Uint8Array(binary.length);
@@ -37,30 +24,12 @@ function readBundledAsset(pathname) {
   return { bytes, type: entry.type };
 }
 
-async function readLocalAsset(pathname) {
-  if (typeof __SAANS_WORKER_BUNDLE__ !== 'undefined') return null;
-  if (typeof process === 'undefined' || !process.versions?.node) return null;
-  const { existsSync, readFileSync } = await import('node:fs');
-  const { extname, resolve, sep } = await import('node:path');
-  const root = resolve(process.cwd(), 'dist', 'client');
-  if (!existsSync(root)) return null;
-  const normalized = pathname === '/' ? '/index.html' : pathname;
-  const candidate = resolve(root, '.' + normalized);
-  if (candidate !== root && !candidate.startsWith(root + sep)) return null;
-  const target = existsSync(candidate) ? candidate : (!normalized.includes('.') ? resolve(root, 'index.html') : null);
-  if (!target || !existsSync(target)) return null;
-  return {
-    bytes: readFileSync(target),
-    type: MIME[extname(target)] ?? 'application/octet-stream',
-  };
-}
-
 /**
- * Serves built frontend assets with CSP and cache headers for Cloudflare Workers or Node tests.
+ * Serves built frontend assets from the embedded worker manifest with CSP and cache headers.
  */
-export async function staticAsset(request, pathname) {
+export function staticAsset(request, pathname) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
-    return new Response('Method Not Allowed', { status: 405 });
+    return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
   }
   let cleanPath;
   try {
@@ -71,7 +40,7 @@ export async function staticAsset(request, pathname) {
   if (cleanPath.includes('..')) {
     return new Response('Forbidden', { status: 403 });
   }
-  const asset = readBundledAsset(cleanPath) ?? (await readLocalAsset(cleanPath));
+  const asset = readBundledAsset(cleanPath);
   if (!asset) {
     return new Response('Not Found', { status: 404 });
   }

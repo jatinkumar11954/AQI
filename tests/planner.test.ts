@@ -67,7 +67,6 @@ describe('planner risk and time helpers', () => {
 describe('findWindows and nearbyParticleCaution', () => {
   it('selects cleaner daytime hours outside office work schedule', () => {
     const env = makeEnv();
-    // Make 07:00-09:00 IST (indices 7 and 8) cleaner than rest of day
     env.air!.hourly[7].aqi = 42;
     env.air!.hourly[8].aqi = 48;
     const { lower, usable } = findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST);
@@ -79,7 +78,6 @@ describe('findWindows and nearbyParticleCaution', () => {
 
   it('enforces stricter ceiling (<= 50) for sensitive households and non-errand activity', () => {
     const env = makeEnv();
-    // All eligible daytime hours are 70 US AQI (> 50, <= 100)
     const standard = findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST);
     expect(standard.usable).not.toBeNull();
 
@@ -91,9 +89,8 @@ describe('findWindows and nearbyParticleCaution', () => {
     expect(exercise.usable).toBeNull();
   });
 
-  it('supports overnight work blocks and blocks outings during high current AQI or station caution', () => {
+  it('supports overnight work blocks and blocks outings on high AQI or station caution', () => {
     const env = makeEnv();
-    // Only 10:00-12:00 IST is <= 40 AQI; overnight worker (22:00-06:00) is free at 10:00
     env.air!.hourly[10].aqi = 35;
     env.air!.hourly[11].aqi = 38;
     const overnight = { ...DEFAULT_PROFILE, workStart: 22, workEnd: 6 };
@@ -101,14 +98,14 @@ describe('findWindows and nearbyParticleCaution', () => {
     expect(result.usable).not.toBeNull();
     expect(localHour(result.usable!.start)).toBe(10);
 
-    // Current AQI > 200 blocks usable window
     env.air!.current!.aqi = 240;
     expect(findWindows(env, overnight, MIDNIGHT_IST).usable).toBeNull();
 
-    // Restore current AQI, trigger station caution via fresh PM2.5 >= 35.5
+    // OpenAQ station caution via fresh PM2.5 >= 35.5
     env.air!.current!.aqi = 75;
     env.stationStatus = 'fresh';
-    env.station = {
+    const openaqStation = {
+      kind: 'openaq' as const,
       id: 101,
       name: 'DTU Delhi',
       owner: 'CPCB',
@@ -117,12 +114,28 @@ describe('findWindows and nearbyParticleCaution', () => {
       pm25: { value: 42, time: MIDNIGHT_IST - 600 },
       pm10: null,
     };
+    env.station = openaqStation;
     expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
     expect(findWindows(env, overnight, MIDNIGHT_IST).usable).toBeNull();
 
-    // Stale station reading (>3h) does not trigger fresh caution
-    env.station.pm25!.time = MIDNIGHT_IST - 4 * HOUR;
+    // Stale OpenAQ reading (>3h) does not trigger caution
+    openaqStation.pm25.time = MIDNIGHT_IST - 4 * HOUR;
     expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(false);
+
+    // CPCB relay station caution via sub-index >= 101
+    env.station = {
+      kind: 'cpcb-relay',
+      name: 'Anand Vihar',
+      owner: 'CPCB monitoring network',
+      provider: 'India API / data.gov.in',
+      distance: 3.1,
+      aqi: 145,
+      time: MIDNIGHT_IST - 900,
+      pm25Index: 145,
+      pm10Index: 112,
+    };
+    expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
+    expect(findWindows(env, overnight, MIDNIGHT_IST).usable).toBeNull();
   });
 });
 
@@ -135,7 +148,7 @@ describe('ventilation, dailyActions, and catalog sources', () => {
     expect(ventilation(tooHot, DEFAULT_PROFILE, MIDNIGHT_IST).title).toContain('Be cautious');
 
     const sensitive = ventilation(env, { ...DEFAULT_PROFILE, seniors: true }, MIDNIGHT_IST);
-    expect(sensitive.title).toContain('Be cautious'); // 75 > 50 threshold for seniors
+    expect(sensitive.title).toContain('Be cautious');
   });
 
   it('produces valid source IDs and Hindi tips across all household actions', () => {

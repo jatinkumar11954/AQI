@@ -43,10 +43,10 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     // Impact simulator preset
     await page.getByRole('link', { name: 'Impact simulator' }).click();
     await page.getByRole('button', { name: 'Avoid a trip' }).click();
-    await expect(page.getByText('Tailpipe CO₂ avoided')).toBeVisible();
+    await expect(page.getByText('Tailpipe CO₂ avoided', { exact: true })).toBeVisible();
 
     // Ask SaansAI quick prompt
-    await page.getByRole('link', { name: 'Ask SaansAI' }).click();
+    await page.getByRole('navigation').getByRole('link', { name: 'Ask SaansAI' }).click();
     await page.getByRole('button', { name: 'Should I open the windows?' }).click();
     await expect(page.getByRole('log', { name: 'Assistant responses' })).toContainText('Current modeled US AQI 88');
   });

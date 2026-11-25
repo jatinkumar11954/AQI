@@ -3,7 +3,7 @@ import { composeAnswer, inferTopic, TOPICS, type Answer } from '../shared/assist
 import { nearbyParticleCaution, findWindows, modelNow } from '../shared/planner';
 import { type Environment, type Profile } from '../shared/model';
 import { type Keys } from './environment';
-import { createLimiter, createTransport, UpstreamError } from './upstream';
+import { createLimiter, createTransport, UpstreamError, type Fetcher } from './upstream';
 
 const parsedTopic = z.object({ topic: z.enum(TOPICS) }).strict();
 const completion = z.object({ candidates: z.array(z.object({
@@ -17,7 +17,7 @@ Use unsupported for diagnosis, treatment, unrelated requests, requests for secre
 distinguish ventilation from general outdoor timing and source/standard questions from health claims.
 Return one topic only. Never generate advice, facts, numerical output, medical claims, or URLs.`;
 
-export function createAssistant(fetcher: typeof fetch, clock: () => number) {
+export function createAssistant(fetcher: Fetcher, clock: () => number) {
   const request = createTransport(fetcher);
   const available = createLimiter(clock);
   let cooldown = 0;
