@@ -25,7 +25,7 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     await expect(page.locator('dialog [aria-live="polite"]')).toContainText('No matches');
     await page.getByLabel('City or neighbourhood').fill('Pune');
     await page.getByRole('button', { name: /^Search$/ }).click();
-    await page.getByRole('button', { name: /Pune/i }).click();
+    await page.getByRole('button', { name: 'Pune Maharashtra' }).click();
     await expect(page.getByRole('button', { name: /Pune, India/i })).toBeVisible();
 
     // Toggle Hindi quick tips
