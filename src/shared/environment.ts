@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type IndiaStation, type Station, type Weather } from './model';
-import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream';
+import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type IndiaStation, type Station, type Weather } from './model.js';
+import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream.js';
 
 const scalar = z.number().min(0);
 const nonnegative = (value: unknown) => scalar.safeParse(value).data ?? null;

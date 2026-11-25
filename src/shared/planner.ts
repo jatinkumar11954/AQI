@@ -1,4 +1,4 @@
-import { HOUR, TIMEZONE, type AirPoint, type Environment, type Profile, type SourceId } from './model';
+import { HOUR, TIMEZONE, type AirPoint, type Environment, type Profile, type SourceId } from './model.js';
 
 const thresholds = [
   [50, 'Good', 'good'], [100, 'Moderate', 'moderate'],

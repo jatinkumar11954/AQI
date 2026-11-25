@@ -1,5 +1,5 @@
-import { createApp } from '../src/server/app';
-import type { Keys } from '../src/server/config';
+import { createApp } from '../src/server/app.js';
+import type { Keys } from '../src/server/config.js';
 
 const productionOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL

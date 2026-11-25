@@ -1,5 +1,5 @@
-import { type Environment, type Profile, type SourceId } from './model';
-import { dailyActions, INDOOR, modelNow, risk, SUSTAINABLE, ventilation } from './planner';
+import { type Environment, type Profile, type SourceId } from './model.js';
+import { dailyActions, INDOOR, modelNow, risk, SUSTAINABLE, ventilation } from './planner.js';
 
 export const TOPICS = ['outdoors', 'commute', 'ventilation', 'cooking', 'filtration', 'family', 'impact', 'sources', 'unsupported'] as const;
 export type Topic = typeof TOPICS[number];

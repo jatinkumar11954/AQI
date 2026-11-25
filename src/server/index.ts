@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
-import { createApp } from './app';
+import { createApp } from './app.js';
 
 const port = Number(process.env.PORT || '4173');
 const dev = process.argv.includes('--dev');

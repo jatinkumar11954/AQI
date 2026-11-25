@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { HOUR, type Environment } from './model';
-import { freshAir } from './planner';
+import { HOUR, type Environment } from './model.js';
+import { freshAir } from './planner.js';
 
 export const PETROL_FACTOR = 2.34;
 const bounded = (min: number, max: number) => z.number().min(min).max(max);

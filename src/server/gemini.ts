@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { composeAnswer, inferTopic, TOPICS, type Answer } from '../shared/assistant';
-import { findWindows, freshIndiaStation, isSensitive, modelNow, nearbyParticleCaution } from '../shared/planner';
-import { HOUR, type Environment, type Profile } from '../shared/model';
-import { type Keys } from './config';
-import { createCache, createLimiter, createTransport, UpstreamError, type Fetcher } from '../shared/upstream';
+import { composeAnswer, inferTopic, TOPICS, type Answer } from '../shared/assistant.js';
+import { findWindows, freshIndiaStation, isSensitive, modelNow, nearbyParticleCaution } from '../shared/planner.js';
+import { HOUR, type Environment, type Profile } from '../shared/model.js';
+import { type Keys } from './config.js';
+import { createCache, createLimiter, createTransport, UpstreamError, type Fetcher } from '../shared/upstream.js';
 
 const parsedTopics = z.object({ topic: z.enum(TOPICS), nextTopic: z.enum(TOPICS).nullable().optional() }).strict();
 const completion = z.object({ candidates: z.array(z.object({

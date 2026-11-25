@@ -2,12 +2,12 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
-import { pointSchema, profileSchema } from '../shared/model';
-import { createEnvironment } from '../shared/environment';
-import { httpsOrigin } from '../shared/deployment';
-import type { Keys } from './config';
-import { createAssistant } from './gemini';
-import { createLimiter, UpstreamError, type Fetcher } from '../shared/upstream';
+import { pointSchema, profileSchema } from '../shared/model.js';
+import { createEnvironment } from '../shared/environment.js';
+import { httpsOrigin } from '../shared/deployment.js';
+import type { Keys } from './config.js';
+import { createAssistant } from './gemini.js';
+import { createLimiter, UpstreamError, type Fetcher } from '../shared/upstream.js';
 
 export type Runtime = Keys & { clientAddress?: string };
 const questionSchema = z.object({
