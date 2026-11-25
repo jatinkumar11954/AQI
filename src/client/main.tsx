@@ -116,7 +116,11 @@ function App() {
           </a>)}
         </nav>
         <div className="sidebar-bottom">
-          <button className="source-button" onClick={() => document.getElementById('sources')?.scrollIntoView()}><Info size={18} /> Data &amp; methods</button>
+          <button className="source-button" onClick={() => {
+            const target = document.getElementById('sources');
+            target?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            target?.focus({ preventScroll: true });
+          }}><Info size={18} /> Data &amp; methods</button>
           <div className="sidebar-note"><Leaf size={18} /><span>Built for Indian households</span></div>
         </div>
       </aside>
@@ -147,7 +151,7 @@ function App() {
           {page === 'impact' && <Improvement env={env} now={now} />}
           {page === 'assistant' && <Assistant key={key + JSON.stringify(profile)} city={city} profile={profile} hindi={hindi} env={env} />}
           </Suspense>
-          <footer className="footer" id="sources">
+          <footer className="footer" id="sources" tabIndex={-1}>
             <div><strong>SaansAI</strong><span>{formatDate(now)} · All times in IST</span></div>
             <div><SourceLink id="model" short="Open-Meteo / CAMS" /><SourceLink id="openaq" short="OpenAQ" /><SourceLink id="cpcb" short="CPCB" /><SourceLink id="aqi" short="US AQI scale" /></div>
           </footer>

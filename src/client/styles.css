@@ -1332,6 +1332,12 @@ html { scroll-padding-top: 5rem; }
   color: var(--muted);
 }
 
+.footer:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
 .footer>div {
   display: flex;
   align-items: center;

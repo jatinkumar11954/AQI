@@ -36,7 +36,7 @@ export function Planner({ env, now, profile, hindi, city, setProfile, chooseCity
   };
   return <div className="section-stack">
     <section className="card sample-card">
-      <CardTitle icon={<UsersRound size={20}/>} title="Try a sample household" sub="Sample settings with live data for the selected city" />
+      <CardTitle icon={<UsersRound size={20}/>} title="Try a sample household" sub="Loads sample settings and switches to that city" />
       <div className="sample-grid">{PROFILES.map(sample => <button className="place" key={sample.name} onClick={() => { setProfile(sample.profile); chooseCity(sample.city); }}
         aria-pressed={city.name === sample.city.name && JSON.stringify(profile) === JSON.stringify(sample.profile)}>
         <strong>{sample.name}</strong><span>{sample.description}</span>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Activity, ArrowDown, ArrowRight, ArrowUp, CalendarDays, ChevronRight, Clock3, Droplet, House, MapPin, RadioTower, ShieldCheck, Sparkles, Thermometer, Wind } from 'lucide-react';
 import { HOUR, type AirPoint, type City, type Environment, type IndiaStation, type Profile, type Reading } from '../shared/model';
-import { dailyActions, dateKey, findWindows, formatDate, formatTime, freshIndiaStation, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
+import { dailyActions, dateKey, findWindows, formatDate, formatTime, freshIndiaStation, futureHours, isSensitive, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
 import { CardTitle, SourceLink } from './ui';
 
 type Shared = { env: Environment; now: number; profile: Profile; hindi: boolean };
@@ -44,13 +44,14 @@ function Hero({ env, city, now, loading }: { env: Environment; city: City; now: 
 
 export function CleanerWindow({ env, now, profile, loading = false, showLink = true }: Omit<Shared, 'hindi'> & { loading?: boolean; showLink?: boolean }) {
   const { lower, usable } = findWindows(env, profile, now);
+  const ceiling = isSensitive(profile) || profile.activity !== 'errands' ? 50 : 100;
   return <section className="card window-card">
     <CardTitle icon={<Clock3 size={20} />} title="Cleaner window" sub="Flexible outdoor plans" />
     <div className="window-note">
       <div className="eyebrow">{usable ? 'POSSIBLE TIME' : lower ? 'LOWEST ELIGIBLE FORECAST' : 'NEXT 24 HOURS'}</div>
       <strong>{loading ? 'Checking forecast…' : usable ? `${formatTime(usable.start)} – ${formatTime(usable.end)}` : 'No suitable window'}</strong>
       <p>{usable ? `${formatDate(usable.start)} · Peak modeled US AQI ${usable.peak}. Recheck before leaving.`
-        : lower ? `The lowest peak for your schedule is ${lower.peak} US AQI on ${formatDate(lower.start)} at ${formatTime(lower.start)}. Conditions still call for caution.`
+        : lower ? `The lowest peak for your schedule is ${lower.peak} US AQI on ${formatDate(lower.start)} at ${formatTime(lower.start)} (your profile screen requires ≤ ${ceiling} US AQI without nearby station caution).`
           : 'A fresh forecast and two eligible hours are needed to suggest a time.'}</p>
     </div>
     {showLink && <a href="#planner" className="text-link">Open your daily plan <ArrowRight size={16} /></a>}
