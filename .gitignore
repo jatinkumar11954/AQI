@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+.DS_Store
+*.log
+*.tmp
+.wrangler/
+.openai/
+.codex/
+.gemini/
+.vscode/
+.idea/
+.cursor/
