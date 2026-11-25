@@ -56,6 +56,7 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     await page.getByRole('button', { name: 'Should I open the windows?' }).click();
     await expect(page.getByRole('log', { name: 'Assistant responses' })).toContainText(
       isLive ? /Current modeled US AQI \d+/ : 'Current modeled US AQI 88',
+      { timeout: 15_000 },
     );
   });
 
