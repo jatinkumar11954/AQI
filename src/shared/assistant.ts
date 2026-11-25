@@ -5,7 +5,8 @@ export const TOPICS = ['outdoors', 'commute', 'ventilation', 'cooking', 'filtrat
 export type Topic = typeof TOPICS[number];
 export type Answer = {
   mode: 'gemini' | 'rules'; text: string; context: string; sources: SourceId[];
-  status?: 'unconfigured' | 'quota' | 'unavailable';
+  status?: 'unconfigured' | 'quota' | 'unavailable' | 'privacy';
+  followUp?: string;
 };
 
 export function inferTopic(question: string): Topic {

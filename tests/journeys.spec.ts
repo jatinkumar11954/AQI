@@ -10,6 +10,7 @@ const gotForecast = async (page: Page) => {
   await expect(page.getByLabel('Forecast metric')).toBeVisible();
 };
 const nav = (page: Page, label: string) => page.getByRole('navigation').getByRole('link', { name: label, exact: true });
+const accessibilityTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'];
 
 test('reads modeled air, explores hours, finds a city and updates the forecast request', async ({ page }) => {
   await fixture(page);
@@ -106,10 +107,34 @@ test('passes automated accessibility checks on each page and the location dialog
   await gotForecast(page);
   for (const label of ['Today', 'Daily planner', 'Indoor air', 'Impact simulator', 'Ask SaansAI']) {
     await nav(page, label).click();
-    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    const results = await new AxeBuilder({ page }).withTags(accessibilityTags).analyze();
     expect(results.violations.map(item => [item.id, item.nodes.map(node => node.target)]), label).toEqual([]);
   }
   await page.getByRole('button', { name: CITIES[0].name + ', India' }).click();
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const results = await new AxeBuilder({ page }).withTags(accessibilityTags).analyze();
   expect(results.violations.map(item => item.id)).toEqual([]);
+});
+
+test('communicates a cold start and recovers without replacing household choices', async ({ page }) => {
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { release = resolve; });
+  let started = false;
+  await page.route('**/api/environment?*', async route => {
+    started = true;
+    await waiting;
+    await route.fulfill({ json: modeled(currentTime()) });
+  });
+  await page.clock.install();
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect.poll(() => started).toBe(true);
+  await page.clock.fastForward(3000);
+  await expect(page.getByText(/Still connecting to the air data service/)).toBeVisible();
+  await page.getByRole('link', { name: 'Personalise my plan' }).click();
+  await page.getByLabel('Household budget').selectOption('low');
+  await nav(page, 'Today').click();
+  release();
+  await expect(page.getByText('Current model', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Still connecting to the air data service/)).toHaveCount(0);
+  await nav(page, 'Daily planner').click();
+  await expect(page.getByLabel('Household budget')).toHaveValue('low');
 });

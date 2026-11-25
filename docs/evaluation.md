@@ -1,46 +1,39 @@
-# SaansAI evaluation report
+# SaansAI release evaluation
 
-**Scope:** PromptWars Virtual Challenge 06 · 26 November 2026, IST
+26 November 2026 IST · PromptWars Virtual Challenge 06
 
-Reviewed the React and TypeScript client, deterministic planner and simulator, Hono routes and provider adapters, Gemini request/response boundary, package lock, tests, Docker and Worker builds. Exercised the local production build with live upstream providers, and ran repeatable Chromium tests against controlled fixtures. The focused Antigravity review checked scheduling intervals and exposure units. This is an engineering evaluation and includes no competition score.
+The assessment covers the repository, dependency lock, Node and Pages builds, public frontend, Render API, upstream sources, and deterministic rules behind the assistant and simulator. Findings are based on executed checks, application code and provider documentation. No competition score was measured.
 
-## Ranked findings and remediation
+## Ranked findings and fixes
 
-| Priority | Finding and user impact | Changes and verification |
+| Severity | User impact | Remediation and evidence |
 |---|---|---|
-| High | A 412 px mobile viewport expanded to about 790 CSS px. City selection, forecast controls and checklist interactions could be off-screen or blocked by overlapping regions. | Capped the mobile grid column and its children and simplified the mobile header. Replayed location search, forecast controls, checklist, simulator and assistant in the Pixel 7 viewport. The live page measured 412 CSS px for both viewport and document width. |
-| High | The planner checked the start of each forecast hour against work. A slot finishing after the shift began could pass the filter. The overview also let a nearby-station notice replace stronger hazardous model advice. | Checked both ends of each forecast interval, guarded consecutive hours, and preserved the stronger severe-risk message. The overnight regression fixture includes a half-hour shift-boundary crossing. Sensitive households also get a stricter current-model threshold. |
-| High | The Docker build invoked a script its build stage did not copy. Wrangler referenced a missing npm command. | Copied the build scripts, corrected the build command, removed unnecessary runtime build outputs from the Docker image and used the unprivileged Node user. The build emits `dist/server.mjs` and `dist/worker.mjs`. Docker runtime execution was unavailable on this host. |
-| Medium | During navigation, interpolated active colours temporarily fell below WCAG contrast. The accessible names of the brand and Hindi control omitted visible text. | Removed navigation colour interpolation and aligned accessible and visible names. Axe passed on all five views and the city selector in desktop and mobile Chromium. |
-| Medium | An unusually large provider response could occupy memory before schema validation. | Bounded streamed responses at 256 KiB, cancelled oversized bodies and avoided retrying them. Unit coverage checks an oversized response without a Content-Length. Upstream destinations are fixed and redirects are disabled. |
-| Medium | Initial browser and API test failures mixed real defects with assertion problems. For example, an emissions label matched two cards, and an API rate-limit assertion reused quota consumed by invalid requests. | Made selectors exact, separated valid and malformed-request rate-limit buckets in tests, and documented the distinction between fixture and live verification. |
-| Medium | A forecast minimum could be confused with a viable outdoor hour. Station relay PM indices can also be mistaken for concentrations, especially when juxtaposed with CAMS. | The UI labels the lowest eligible modeled forecast even when there is no suitable window. It displays the CPCB-derived station AQI and PM sub-indices with their own standard and timestamp. Only actual mass concentrations get µg/m³ units. |
-| Low | The exposure simulator could be misread as a health result or a net comparison across all transport modes. | The calculator uses a signed, one-hour outdoor concentration-time proxy and a separately labelled petrol-only CO₂ calculation. A hand-worked test checks the monthly result, adverse changes and aggregation. The UI documents exclusions. |
+| High | A fresh particulate monitor could hide an independently available CPCB relay report and its India-scale caution. | Fetch and cache the sources independently. Label their units, time and AQI scales separately. A fresh conflicting report blocks a recommendation for flexible outdoor activity. API and planner tests cover the distinction. |
+| High | A user arriving after a free Render instance went idle could run out of browser wait time before conditions loaded. | Allow up to 75 seconds on the deployed frontend, show a progress message after 2.8 seconds, retry one transient forecast GET, and preserve planner edits during recovery. The browser test controls the clock and response. |
+| High | Uncached Gemini requests could quickly exhaust the provider’s quota. A single selected topic sometimes omitted one part of a question, and the prompt included context that the model did not need. | Coalesce identical requests, cache approved topic IDs, bound attempted calls and validate one or two topic IDs. Reduce prompt inputs and filter common personal contact details. The tests count upstream calls and cover malformed replies and 429. |
+| Medium | The landing page prioritized metrics and left personalization buried in navigation. | Lead with household actions and a direct planner link. Explain trade-offs in the planner and budget tiers. Playwright follows this path while a forecast is loading. |
+| Medium | Chrome reported a CSP violation caused by a runtime validation optimization probing dynamic evaluation. | Configure Zod for its supported jitless mode. The CSP retains its existing prohibition on dynamic script evaluation. |
+| Medium | The shared client loaded secondary views and fallback provider code before most users needed them. | Split secondary views and keyless providers, downsize the skyline, skip background auto-refresh, and keep provider caches bounded. Initial JS fell from about 113.08 to 109.13 kB gzip locally. The skyline went from 72.22 to 42.38 kB. |
+| Medium | Earlier releases had mobile overflow, transient navigation contrast, and a forecast-hour shift overlap bug. | The earlier remediation preserved a single mobile column, stable contrast and complete forecast-hour interval checks. These paths remain covered by browser and domain tests. |
 
-No critical defect was confirmed in the tested scope. A release change moved static hosting to GitHub Pages. Without the optional HTTPS API, the site fetches public data cross-origin and answers questions through local rules. The build and API tests cover a server-backed Pages origin with a strict allowlist.
+## Reproducible local evidence
 
-## Verification
-
-| Check | Observed result |
+| Check | Result |
 |---|---|
-| `npm run check` and `npm run build` | Passed. TypeScript, client, Node and Worker artifacts built. |
-| `npm test` | 36 of 36 tests passed across five files. Covered US AQI boundaries, shift overlap, stale data, station units and timestamps, impact arithmetic, Gemini output validation, API quotas and provider failures. |
-| `npm run test:e2e` | 16 of 16 passed in desktop/mobile Chromium. Axe checked WCAG A/AA rules on all app views and the location dialog. |
-| Production Node API smoke | Fresh modeled air, weather and CPCB relay station reports returned HTTP 200 for Delhi, Mumbai, Bengaluru and Lucknow. Pune search, bad-coordinate response and grounded rules answer passed. Four concurrent city requests took 961–1,047 ms in one local run. |
-| Live browser check | No page errors or axe violations on the Today view in clean desktop and Pixel 7 contexts. The 1280 px and 412 px document widths matched their respective viewports. The city dialog opened and dismissed with Escape. |
-| Dependency and secret checks | `npm audit --json` reported no advisories in the resolved lockfile at check time. A pattern scan of project files returned no credential matches. Type, request and package checks are scoped evidence, not a penetration test. |
-| Build size | Vite reported approximately 112 kB gzip for JavaScript and 10 kB for CSS. The local uncompressed Page Resource Timing transfer total was approximately 533 kB for the live Today view. No load-test or Lighthouse score was used. |
-
-## GitHub Pages release verification
-
-The GitHub Actions build and deploy jobs completed successfully on 26 November 2026 IST. Anonymous desktop and Pixel 7 browser tests returned HTTP 200, displayed fresh CAMS forecasts and CPCB station data, switched from Delhi to Pune through search, and returned a source-grounded Rules answer. Both tested layouts matched their viewports and axe returned zero violations on the public Today view. [Verified deployment](https://jatinkumar11954.github.io/AQI/) · [Successful workflow run](https://github.com/jatinkumar11954/AQI/actions/runs/45699779316)
+| TypeScript/build | `npm run check`, `npm run build` and `npm run build:pages` passed. Vite emitted its static frontend, and the full build emitted Node and Worker bundles. |
+| Vitest coverage | 48 of 48 tests passed in six files. The critical modules defined in `vitest.config.ts` reached **90.83% statements, 96.22% lines, 83.94% branches and 88.99% functions**. |
+| E2E and accessibility | 18 of 18 desktop and mobile Chromium runs passed. Axe’s WCAG 2.0, 2.1 and 2.2 A/AA rule tags returned zero violations in all five views and the location dialog. Keyboard tests exercise skip link, modal focus, Escape and focus restoration. |
+| Concurrency and failure handling | Fixtures verify 25 identical-city requests use three shared public-feed calls. Twelve identical classification requests make one Gemini call. Tests also exercise missing and stale data, all upstream failures, bad inputs, invalid AI output, 429 and app quota. |
+| Dependencies and secrets | `npm audit --json` reported zero known advisories. The baseline scan of the trees of all six reachable Git commits found zero credential-pattern matches and no tracked local secret or IDE metadata paths. These checks are scoped and do not establish the absence of every possible vulnerability. |
+| Baseline deployment | Lighthouse 13.6.0 mobile measured **99 performance, 100 accessibility, 96 best practices and 100 SEO**. FCP 817 ms, LCP 2,102 ms, TBT 40 ms, CLS 0.0088. Chrome reported a Zod probe blocked by CSP. |
 
 ## Remaining limitations
 
-- **Live Gemini and OpenAQ authentication remain unverified.** No real API keys were available. Gemini success, malformed results, quota and failure paths were tested with fixtures. In live checks the assistant explicitly used Rules mode, and CPCB data came through the public relay. Gemini is a topic router, with constrained contextual responses rather than open-ended medical or lifestyle advice.
-- The relay and regional model can lag or miss street-level conditions. The app has no street-level exposure model, indoor sensor, official advisory ingestion, or personal risk model. It links to CPCB's official portal. Its scheduling and ventilation thresholds are product rules rather than guarantees.
-- Hosting limits are per isolate and Node limits are per process. Real deployment scale, distributed quota enforcement, concurrent nationwide load, and Docker execution were outside verified scope.
-- Only Chromium was used for browser automation. Automated axe checks are partial coverage of accessibility. Hindi is available for quick tips and supported topic matching, while the full interface remains English.
-- The calculator estimates petrol combustion, user-entered fuel/fare spending, and an outdoor PM2.5 concentration-time proxy. It cannot quantify net multimodal emissions, medical benefits or realized collective impact.
+- Reference monitors and the regional CAMS grid have distinct location and coverage limits. The CPCB relay can lag or omit sites. The app links directly to the official India National AQI and withholds time windows when the required data is stale or missing. It uses no indoor measurements or street-level exposure model.
+- The simulator estimates petrol tailpipe CO₂, fuel and fare spending, and an outdoor PM2.5 concentration-time proxy. It does not measure inhaled dose, health outcomes, lifecycle emissions or community participation.
+- Gemini routes questions to a finite reviewed library. Nuanced questions can receive partial coverage or the unsupported response. The contact detail filter catches common formats. The app asks users to avoid supplying identifiable or medical information.
+- Rate limits and caches are per process. Render’s reverse proxy may group users under a shared socket address. App limits can therefore affect multiple households. No sustained load test was performed against the free instance.
+- Chromium and axe checks are partial accessibility evidence. Screen-reader testing with assistive hardware, full WCAG 2.2 AA conformance and other browser engines are outside this audit. Hindi support covers selected tips and assistant topics.
+- Docker runtime execution and Cloudflare publication were outside the release scope.
 
-See [methodology](methodology.md), [requirements and verification mapping](requirements.md), and the [development journal](journal.md).
+See the [requirement matrix](requirements.md), [data methodology](methodology.md), [demo script](demo.md) and [development journal](journal.md).

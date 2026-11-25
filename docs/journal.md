@@ -25,3 +25,12 @@
 
 - Switched to GitHub Actions for frontend publication. Shared provider parsing, bounded caching and timeouts between the Node API and the keyless Pages build.
 - Verified that each public data provider accepts GitHub Pages cross-origin reads. Added an allowlisted HTTPS backend option for Gemini and OpenAQ. The keyless Pages assistant applies only local rules and never sends questions or household settings to a provider.
+
+### Live release audit and hardening
+
+- The user supplied the challenge requirements, confirmed setting up provider keys and shared the Render service. Codex inspected the deployed Pages UI, the API and the checkout before making this release’s changes.
+- The baseline mobile Lighthouse run recorded 99 performance, 100 accessibility, 96 best practices and 100 SEO. Chrome DevTools reported a CSP violation from Zod’s dynamic code evaluation probe.
+- Moved household actions to the top and added a direct planner entry. Published CPCB relay AQI alongside OpenAQ concentrations, rather than silently dropping one feed when both are present. Kept severe station conditions in the deterministic safety decision.
+- Matched the browser’s retry and wait behavior to Render’s free-instance wake time. Added local readiness, coalesced Gemini classifications, reduced model context, set request caps, and constrained the revised prompt to one or two approved guidance topics.
+- The first regression run surfaced a missing direct planner link. Added the link and made the cold-start journey exercise a budget change before the forecast recovered. Typecheck, production build, 48 unit/API tests and all 18 Playwright runs passed after the fix.
+- The [evaluation report](evaluation.md) records the quality gates and separates fixture behavior from observations in production.

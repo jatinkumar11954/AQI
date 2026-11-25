@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Activity, ArrowDownUp, ArrowRight, CalendarDays, ChevronDown, Compass, House, Info, Leaf, MapPin, RefreshCw, Sparkles, Wind } from 'lucide-react';
 import '@fontsource-variable/manrope';
@@ -6,10 +6,15 @@ import '@fontsource-variable/dm-sans';
 import './styles.css';
 import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, citySchema, profileSchema, type City, type Environment, type Profile } from '../shared/model';
 import { dateKey, formatDate } from '../shared/planner';
-import { readEnvironment } from './data';
+import { environmentBudgetMs, readEnvironment } from './data';
 import { AirOverview } from './overview';
-import { Assistant, Improvement, Indoor, Planner } from './sections';
 import { LocationDialog, SourceLink, useStored } from './ui';
+
+const loadSections = () => import('./sections');
+const Assistant = lazy(() => loadSections().then(({ Assistant }) => ({ default: Assistant })));
+const Improvement = lazy(() => loadSections().then(({ Improvement }) => ({ default: Improvement })));
+const Indoor = lazy(() => loadSections().then(({ Indoor }) => ({ default: Indoor })));
+const Planner = lazy(() => loadSections().then(({ Planner }) => ({ default: Planner })));
 
 const pages = [
   { id: 'today', title: 'Today', icon: Compass },
@@ -20,11 +25,11 @@ const pages = [
 ] as const;
 export type Page = typeof pages[number]['id'];
 const headings: Record<Page, string> = {
-  today: 'Air quality today', planner: 'Plan your day', indoor: 'Make home air cleaner',
+  today: 'Your air plan today', planner: 'Plan your day', indoor: 'Make home air cleaner',
   impact: 'Compare your routines', assistant: 'Ask SaansAI',
 };
 const intros: Record<Page, string> = {
-  today: 'Your local air outlook and practical steps for the day ahead.',
+  today: 'What to do today, with local readings and forecasts to explain why.',
   planner: 'Build a routine around your household, work and local forecast.',
   indoor: 'Practical ways to reduce indoor pollution at every budget.',
   impact: 'Compare petrol use, travel costs and time spent outdoors.',
@@ -41,6 +46,7 @@ function App() {
   const [locationOpen, setLocationOpen] = useState(false);
   const [selection, setSelection] = useState<{ key: string; data: Environment | null; error: string }>({ key: '', data: null, error: '' });
   const [refreshing, setRefreshing] = useState(true);
+  const [slow, setSlow] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [now, setNow] = useState(stamp);
   const key = city.lat + ',' + city.lon;
@@ -58,24 +64,32 @@ function App() {
   }, []);
   useEffect(() => {
     const tick = window.setInterval(() => setNow(stamp()), 60_000);
-    const update = window.setInterval(() => setRefresh(value => value + 1), 9 * 60_000);
+    const update = window.setInterval(() => {
+      if (document.visibilityState === 'visible') setRefresh(value => value + 1);
+    }, 9 * 60_000);
     return () => { window.clearInterval(tick); window.clearInterval(update); };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
     setRefreshing(true);
-    const networkLimit = AbortSignal.timeout(12_000);
+    setSlow(false);
+    const wait = window.setTimeout(() => setSlow(true), 2800);
+    const networkLimit = AbortSignal.timeout(environmentBudgetMs);
     readEnvironment(city, AbortSignal.any([controller.signal, networkLimit])).then(data => {
       if (!controller.signal.aborted) setSelection({ key, data, error: '' });
     }).catch((error: Error) => {
       if (!controller.signal.aborted) setSelection(previous => ({
-        key, data: previous.key === key && previous.data ? { ...previous.data, airStatus: 'stale', stationStatus: previous.data.station ? 'stale' : previous.data.stationStatus, weather: null } : null,
-        error: networkLimit.aborted ? 'The data request timed out.' : error.message,
+        key, data: previous.key === key && previous.data ? {
+          ...previous.data, airStatus: 'stale', stationStatus: previous.data.station ? 'stale' : previous.data.stationStatus,
+          india: previous.data.india ? { ...previous.data.india, status: 'stale' } : undefined, weather: null,
+        } : null,
+        error: networkLimit.aborted ? 'The data service did not respond in time.' : error.message,
       }));
     }).finally(() => {
-      if (!controller.signal.aborted) { setRefreshing(false); setNow(stamp()); }
+      window.clearTimeout(wait);
+      if (!controller.signal.aborted) { setSlow(false); setRefreshing(false); setNow(stamp()); }
     });
-    return () => controller.abort();
+    return () => { window.clearTimeout(wait); controller.abort(); };
   }, [city.lat, city.lon, key, refresh]);
 
   function chooseCity(next: City) {
@@ -86,6 +100,8 @@ function App() {
   const shared = { env, now, profile, hindi };
   const loading = refreshing && !env.air;
   const dayKey = dateKey(now);
+  const reloadData = () => { setRefreshing(true); setRefresh(value => value + 1); };
+  const unavailable = !refreshing && env.airStatus === 'unavailable' && !env.station;
   return <>
     <a href="#main-title" className="skip" onClick={event => { event.preventDefault(); document.getElementById('main-title')?.focus(); }}>Skip to content</a>
     <div className="shell">
@@ -115,16 +131,22 @@ function App() {
         <main className="content">
           <div className="page-heading">
             <div><h1 id="main-title" tabIndex={-1}>{headings[page]}</h1><p>{intros[page]}</p></div>
-            {page === 'today' && <button className="button refresh" disabled={refreshing} onClick={() => { setRefreshing(true); setRefresh(value => value + 1); }}>
+            {page === 'today' && <button className="button refresh" disabled={refreshing} onClick={reloadData}>
               <RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Updating' : 'Refresh'}
             </button>}
           </div>
-          {error && <div className="notice" role="alert">{error} {env.air ? 'Showing the last data from this visit.' : 'General guidance is still available.'}</div>}
+          {slow && <p className="notice" role="status">Still connecting to the air data service. It may take about a minute after an idle period.</p>}
+          {(error || unavailable) && <div className="notice" role="status">
+            <p>{error || 'Live air readings are temporarily unavailable.'} {env.air ? 'Showing the last data from this visit.' : 'General guidance is still available.'}</p>
+            <button className="button mt-2" disabled={refreshing} onClick={reloadData}>Retry live readings</button>
+          </div>}
           {page === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
+          <Suspense fallback={<p className="empty" role="status">Opening this section…</p>}>
           {page === 'planner' && <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />}
           {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
           {page === 'impact' && <Improvement env={env} now={now} />}
           {page === 'assistant' && <Assistant key={key + JSON.stringify(profile) + String(hindi)} city={city} profile={profile} hindi={hindi} env={env} />}
+          </Suspense>
           <footer className="footer" id="sources">
             <div><strong>SaansAI</strong><span>{formatDate(now)} · All times in IST</span></div>
             <div><SourceLink id="model" short="Open-Meteo / CAMS" /><SourceLink id="openaq" short="OpenAQ" /><SourceLink id="cpcb" short="CPCB" /><SourceLink id="aqi" short="US AQI scale" /></div>

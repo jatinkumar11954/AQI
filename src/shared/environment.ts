@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type Station, type Weather } from './model';
+import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type IndiaStation, type Station, type Weather } from './model';
 import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream';
 
 const scalar = z.number().min(0);
@@ -53,7 +53,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
   const request = createTransport(fetcher);
   const airCache = createCache<ReturnType<typeof parseAir>>(384, 480, 3 * HOUR, clock);
   const weatherCache = createCache<Weather>(384, 720, 2 * HOUR, clock);
-  const relayCache = createCache<Station | null>(384, 600, 12 * HOUR, clock);
+  const relayCache = createCache<IndiaStation | null>(384, 600, 12 * HOUR, clock);
   const stationCache = createCache<Station | null>(384, 900, 12 * HOUR, clock);
   const searchCache = createCache<City[]>(384, 3600, 86400, clock);
   const providers = createLimiter(clock);
@@ -97,7 +97,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
     };
   }
 
-  async function relayStation(lat: number, lon: number): Promise<Station | null> {
+  async function relayStation(lat: number, lon: number): Promise<IndiaStation | null> {
     if (!providers('cpcb-relay', 36)) throw new UpstreamError(429);
     const payload = z.object({ data: z.array(z.object({
       station: z.string().max(150), updated: z.string(),
@@ -109,7 +109,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
       const result = z.object({ avg: z.number().min(0).max(500).nullable() }).safeParse(raw);
       return result.success ? result.data.avg : null;
     };
-    const candidates: Station[] = [];
+    const candidates: IndiaStation[] = [];
     for (const item of payload.data) {
       const stamp = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::(\d{2}))?$/.exec(item.updated);
       if (!stamp || item.distance_km > 25) continue;
@@ -123,20 +123,25 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
         distance: item.distance_km, aqi: item.aqi, time, pm25Index, pm10Index,
       });
     }
-    return candidates.sort((a, b) => a.distance - b.distance)[0] ?? null;
+    return candidates.sort((a, b) => Number(now - a.time > OBSERVATION_MAX_AGE)
+      - Number(now - b.time > OBSERVATION_MAX_AGE) || a.distance - b.distance)[0] ?? null;
   }
 
   const mostRecent = (entry: Station) => entry.kind === 'cpcb-relay' ? entry.time : Math.max(entry.pm25?.time ?? 0, entry.pm10?.time ?? 0);
-  async function observation(key: string, lat: number, lon: number, openaqApiKey: string | undefined) {
-    let openAQ;
-    if (openaqApiKey) {
-      openAQ = await stationCache(key, () => station(lat, lon, openaqApiKey)).catch(() => null);
-      if (openAQ?.value && !openAQ.stale && clock() - mostRecent(openAQ.value) <= 3 * HOUR) return openAQ;
-    }
-    const relay = await relayCache(key, () => relayStation(lat, lon)).catch(() => null);
-    if (relay?.value) return relay;
-    if (openAQ?.value) return openAQ;
-    return relay;
+  async function observations(key: string, lat: number, lon: number, openaqApiKey: string | undefined) {
+    const [openAQ, relay] = await Promise.all([
+      openaqApiKey ? stationCache(key, () => station(lat, lon, openaqApiKey)).catch(() => null) : null,
+      relayCache(key, () => relayStation(lat, lon)).catch(() => null),
+    ]);
+    const now = clock();
+    const fresh = (entry: { value: Station | null; stale: boolean } | null) =>
+      entry?.value != null && !entry.stale && now - mostRecent(entry.value) <= OBSERVATION_MAX_AGE;
+    const primary = fresh(openAQ) ? openAQ
+      : relay?.value ? relay : openAQ?.value ? openAQ : relay;
+    const india: Environment['india'] = relay?.value && primary?.value?.kind === 'openaq'
+      ? { station: relay.value, status: fresh(relay) ? 'fresh' : 'stale' }
+      : undefined;
+    return { primary, india };
   }
 
   return {
@@ -174,7 +179,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
           if (!current || time == null) throw new UpstreamError(502);
           return { time, temperature: number(current.temperature_2m), humidity: nonnegative(current.relative_humidity_2m), wind: nonnegative(current.wind_speed_10m) };
         }),
-        observation(key, lat, lon, openaqApiKey),
+        observations(key, lat, lon, openaqApiKey),
       ]);
       const now = clock();
       const out = { ...EMPTY_ENV };
@@ -188,12 +193,14 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
       if (weather.status === 'fulfilled' && !weather.value.stale && now - weather.value.value.time <= 2 * HOUR
         && weather.value.value.time <= now + 900) out.weather = weather.value.value;
       out.stationStatus = 'unavailable';
-      if (observed.status === 'fulfilled' && observed.value) {
-        out.station = observed.value.value;
+      if (observed.status === 'fulfilled' && observed.value.primary) {
+        const { primary, india } = observed.value;
+        if (india) out.india = india;
+        out.station = primary.value;
         if (!out.station) out.stationStatus = 'no-station';
         else {
           const lastMeasurement = mostRecent(out.station);
-          if (lastMeasurement) out.stationStatus = !observed.value.stale && now - lastMeasurement <= 3 * HOUR ? 'fresh' : 'stale';
+          if (lastMeasurement) out.stationStatus = !primary.stale && now - lastMeasurement <= OBSERVATION_MAX_AGE ? 'fresh' : 'stale';
         }
       }
       return out;

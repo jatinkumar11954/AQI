@@ -1,15 +1,17 @@
-# LinkedIn draft
+# LinkedIn post draft
 
-On a smog day, the question I wanted SaansAI to answer was simple. Can my family keep today’s plans, or should we change them?
+On a smog day, can my family keep today’s plans, or should we change them?
 
-I worked on SaansAI for Google for Developers × Hack2skill PromptWars Virtual Challenge 06. A household can pick a city, enter work hours and commute details, and add a child or older adult to the plan. SaansAI checks which activities can move, whether the forecast supports an outdoor window, and what the household can do indoors without buying equipment.
+That question guided SaansAI, my project for Google for Developers × Hack2skill PromptWars Virtual Challenge 06. Pick an Indian city, set up your household and commute, and the first screen gives you actions for today. It explains when a flexible activity could move, what you can do indoors on a zero-cost budget, and how a change in travel might affect petrol spending.
 
-A turning point came during the Antigravity review. The lowest AQI in a forecast can still be too high for outdoor play. We changed the planner to use absolute cutoffs and check the work schedule and nearby station conditions before it suggests a time. The interface keeps CPCB station data and CAMS model estimates visibly separate.
+One design decision mattered early. The lowest forecast hour can still be too polluted to recommend outdoor play. SaansAI checks the forecast, nearby station reports and the household’s schedule before suggesting a time. The screen labels CPCB station AQI, OpenAQ measurements and CAMS modeled US AQI separately.
 
-The build uses React, TypeScript, Tailwind and a small Hono API. Rules handle air-quality thresholds and the maths for petrol, fares and outdoor PM2.5. The Gemini Developer API classifies questions into a reviewed answer catalog. The early prompt asked for a broad architecture critique. Later prompts focused on two concrete checks, how a forecast interval overlaps a shift and what an exposure estimate actually measures.
+I used React, TypeScript, Tailwind and Hono, with GitHub Pages and Render. Gemini’s first prompt selected one guidance topic. The revised prompt can select a second when the user asks about two decisions. The app applies the thresholds, performs the calculations and supplies the exact wording and sources from its reviewed catalog.
 
-I supplied the challenge goals and evaluation criteria. Google Antigravity and prior AI-assisted prototyping generated and revised project code, tests and documentation. Provider responses, browser results and command outputs were used to verify the claims. The audit surfaced a mobile overflow bug and navigation contrast issues, which the implementation pass addressed.
+I supplied the challenge requirements and evaluation priorities, configured the provider keys and confirmed the Render deployment. Earlier AI-assisted prototyping and Google Antigravity helped produce the app, tests and documentation. Codex audited the live site and generated the latest engineering changes. We checked the results against real API responses, browser runs and reproducible tests.
 
-The remaining limitation I care about most is resolution. A city forecast and a nearby station can inform a decision, while the conditions on a school route or inside a home can still differ.
+A regional model and reference monitor can inform a decision. Conditions on a school route or inside a home can still differ.
+
+Try the [live application](https://jatinkumar11954.github.io/AQI/) or see the [project and evaluation evidence](https://github.com/jatinkumar11954/AQI).
 
 #PromptWars #GoogleForDevelopers #AirQuality #Gemini

@@ -13,7 +13,8 @@
     "start": "node --env-file-if-exists=.env dist/server.mjs",
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",
@@ -33,6 +34,7 @@
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "@vitest/coverage-v8": "4.1.12",
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",

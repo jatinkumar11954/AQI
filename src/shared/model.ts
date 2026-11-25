@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// Keep validation compatible with the browser's strict script policy.
+z.config({ jitless: true });
+
 export const HOUR = 3600;
 export const TIMEZONE = 'Asia/Kolkata';
 export const latitude = z.number().min(6).max(38);
@@ -48,12 +51,14 @@ export type Station = {
   | { kind: 'cpcb-relay'; aqi: number | null; time: number; pm25Index: number | null; pm10Index: number | null }
 );
 export type FeedStatus = 'fresh' | 'stale' | 'unavailable';
+export type IndiaStation = Extract<Station, { kind: 'cpcb-relay' }>;
 export type Environment = {
   air: { current: AirPoint | null; hourly: AirPoint[]; fetchedAt: number } | null;
   airStatus: FeedStatus;
   weather: Weather | null;
   station: Station | null;
   stationStatus: FeedStatus | 'unconfigured' | 'no-station';
+  india?: { station: IndiaStation; status: 'fresh' | 'stale' };
 };
 export const EMPTY_ENV: Environment = { air: null, airStatus: 'unavailable', weather: null, station: null, stationStatus: 'unconfigured' };
 

@@ -1,0 +1,67 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CITIES, DEFAULT_PROFILE } from '../src/shared/model';
+import { modeled } from './fixtures';
+
+const origin = 'https://backend.example';
+const location = CITIES[0];
+
+async function connect(fetcher: typeof fetch) {
+  vi.stubEnv('MODE', 'pages');
+  vi.stubEnv('VITE_API_BASE_URL', origin);
+  vi.stubGlobal('fetch', fetcher);
+  vi.resetModules();
+  return import('../src/client/data');
+}
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+describe('Pages network recovery', () => {
+  it('retries a single idempotent environment read after a cold-start gateway response', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(new Response('<html>waking service</html>', { status: 503 }))
+      .mockResolvedValueOnce(Response.json(modeled()));
+    const api = await connect(fetcher);
+    await expect(api.readEnvironment(location, new AbortController().signal)).resolves.toMatchObject({ airStatus: 'fresh' });
+    expect(api.environmentBudgetMs).toBeGreaterThan(60_000);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toBe(origin + '/api/environment?lat=28.61&lon=77.21');
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
+  });
+
+  it('does not retry throttled or aborted requests', async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: { message: 'Try later.' } }, { status: 429 }))
+      .mockRejectedValueOnce(new TypeError('aborted network'));
+    const api = await connect(fetcher);
+    await expect(api.readEnvironment(location, new AbortController().signal)).rejects.toThrow('Try later.');
+    const controller = new AbortController();
+    controller.abort();
+    await expect(api.readEnvironment(location, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers with on-device rules if the backend cannot process the assistant request', async () => {
+    const fetcher = vi.fn(async () => new Response('waking', { status: 502 }));
+    const api = await connect(fetcher);
+    const answer = await api.askSaansAI('Should I open windows?', location, DEFAULT_PROFILE, 'en', modeled(), new AbortController().signal);
+    expect(answer).toMatchObject({ mode: 'rules', status: 'unavailable', sources: ['clean'] });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates keyless search constraints and keeps assistant requests local', async () => {
+    vi.stubEnv('MODE', 'pages');
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    vi.resetModules();
+    const api = await import('../src/client/data');
+    const { signal } = new AbortController();
+    await expect(api.searchCities('a', signal)).rejects.toThrow('Enter a city or postcode');
+    const answer = await api.askSaansAI('Can children play outside?', location, DEFAULT_PROFILE, 'en', modeled(), signal);
+    expect(answer).toMatchObject({ mode: 'rules', status: 'unconfigured', sources: ['clean'] });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});

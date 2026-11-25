@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Activity, ArrowDown, ArrowRight, ArrowUp, CalendarDays, ChevronRight, Clock3, Droplet, House, MapPin, RadioTower, ShieldCheck, Sparkles, Thermometer, Wind } from 'lucide-react';
-import { HOUR, type AirPoint, type City, type Environment, type Profile, type Reading } from '../shared/model';
-import { dailyActions, findWindows, formatDate, formatTime, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
+import { HOUR, type AirPoint, type City, type Environment, type IndiaStation, type Profile, type Reading } from '../shared/model';
+import { dailyActions, findWindows, formatDate, formatTime, freshIndiaStation, futureHours, modelNow, nearbyParticleCaution, risk } from '../shared/planner';
 import { CardTitle, SourceLink } from './ui';
 
 type Shared = { env: Environment; now: number; profile: Profile; hindi: boolean };
-const format = (value: number | null | undefined, places = 0) => value == null ? '—' : new Intl.NumberFormat('en-IN', { maximumFractionDigits: places }).format(value);
+const formats = [new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }), new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 })];
+const format = (value: number | null | undefined, places: 0 | 1 = 0) => value == null ? '—' : formats[places].format(value);
 const dateTime = (time: number) => `${formatDate(time)}, ${formatTime(time)} IST`;
-const safeLead = (aqi: number | null, conflict: boolean) => {
-  if (aqi != null && aqi > 300) return 'Avoid outdoor physical activity and follow local advisories.';
+const safeLead = (aqi: number | null, conflict: boolean, indiaAqi: number | null) => {
+  if ((indiaAqi ?? 0) >= 401 || (aqi != null && aqi > 300)) return 'Avoid outdoor physical activity and follow local advisories.';
   if (aqi != null && aqi > 200) return 'Move strenuous activity indoors and limit non-essential outdoor time.';
   if (conflict) return 'A nearby station reports elevated pollution. Recheck local conditions before any optional outdoor activity.';
   if (aqi == null) return 'Check the official local AQI before planning outdoor activities.';
@@ -32,7 +33,7 @@ function Hero({ env, city, now, loading }: { env: Environment; city: City; now: 
     <div className="aqi-scale" aria-hidden="true">
       {['good', 'moderate', 'sensitive', 'unhealthy', 'very-unhealthy', 'hazardous'].map(tone => <div key={tone} className={tone}>{tone === category.tone && <span />}</div>)}
     </div>
-    <p className="hero-advice">{loading ? 'Retrieving the current regional model and hourly outlook…' : safeLead(isCurrent ? value : null, nearbyParticleCaution(env, now))}</p>
+    <p className="hero-advice">{loading ? 'Retrieving the current regional model and hourly outlook…' : safeLead(isCurrent ? value : null, nearbyParticleCaution(env, now), freshIndiaStation(env, now)?.aqi ?? null)}</p>
     <div className="hero-footer">
       <div><span>PM2.5</span><strong>{format((current ?? last)?.pm25, 1)} <small>µg/m³</small></strong></div>
       <div><span>PM10</span><strong>{format((current ?? last)?.pm10, 1)} <small>µg/m³</small></strong></div>
@@ -114,10 +115,23 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
   </section>;
 }
 
-function StationPanel({ env, now }: { env: Environment; now: number }) {
+function IndiaReport({ station, stale }: { station: IndiaStation; stale: boolean }) {
+  return <div className="station-report">
+    <h3>India-scale station AQI {format(station.aqi)}</h3>
+    <p><strong>{station.name}</strong> · {format(station.distance, 1)} km from city point</p>
+    <p className="muted text-sm">{dateTime(station.time)}{stale ? ' · Stale report' : ''}. CPCB station data via India API.</p>
+    <dl className="readings">
+      <div><dt>PM2.5 sub-index</dt><dd><strong>{format(station.pm25Index)}</strong></dd></div>
+      <div><dt>PM10 sub-index</dt><dd><strong>{format(station.pm10Index)}</strong></dd></div>
+    </dl>
+    <SourceLink id="relay" />
+  </div>;
+}
+
+function StationPanel({ env, now, loading }: { env: Environment; now: number; loading: boolean }) {
   const { station, stationStatus } = env;
   const labels = {
-    unconfigured: 'The OpenAQ station feed needs a configured API key.',
+    unconfigured: 'Station readings are unavailable.',
     unavailable: 'Station readings are temporarily unavailable.',
     'no-station': 'No suitable reference monitor found within 25 km.',
     stale: 'The station feed or its latest readings may be stale.',
@@ -126,20 +140,18 @@ function StationPanel({ env, now }: { env: Environment; now: number }) {
   const showReading = (reading: Reading | null) => reading
     ? <span><strong>{format(reading.value, 1)} µg/m³</strong><small>{dateTime(reading.time)}{now - reading.time > 3 * HOUR ? ' · Older reading' : ''}</small></span>
     : <span>Unavailable</span>;
-  return <section className="card">
+  return <section className="card station-card">
     <CardTitle icon={<RadioTower size={20} />} title="Observed station data" sub="Separate from the CAMS model" />
-    <p className="card-intro">{labels[stationStatus]}</p>
-    {station && <><p><strong>{station.name}</strong> · {format(station.distance, 1)} km from city point<br /><small>{station.owner} · via {station.provider}</small></p>
-      {station.kind === 'openaq' ? <>
-        <dl className="readings"><div><dt>PM2.5</dt><dd>{showReading(station.pm25)}</dd></div><div><dt>PM10</dt><dd>{showReading(station.pm10)}</dd></div></dl>
-        <a className="source-link" href={`https://explore.openaq.org/locations/${station.id}`} target="_blank" rel="noreferrer">Open station <ArrowRight size={14} /></a>
-      </> : <>
-        <p className="card-intro"><strong>India-scale station AQI {format(station.aqi)}</strong> · {dateTime(station.time)}<br /><small>Calculated by the relay from CPCB station sub-indices.</small></p>
-        <dl className="readings"><div><dt>PM2.5 sub-index</dt><dd><strong>{format(station.pm25Index)}</strong></dd></div><div><dt>PM10 sub-index</dt><dd><strong>{format(station.pm10Index)}</strong></dd></div></dl>
-        <SourceLink id="relay" />
-      </>}
-    </>}
-    <p className="muted text-sm">Use CPCB for the official India National AQI.</p>
+    <p className="card-intro">{loading ? 'Retrieving nearby station reports…' : labels[stationStatus]}</p>
+    {station?.kind === 'openaq' && <div className="station-report">
+      <h3>OpenAQ measured concentrations</h3>
+      <p><strong>{station.name}</strong> · {format(station.distance, 1)} km from city point<br /><small>{station.owner} · via {station.provider}</small></p>
+      <dl className="readings"><div><dt>PM2.5</dt><dd>{showReading(station.pm25)}</dd></div><div><dt>PM10</dt><dd>{showReading(station.pm10)}</dd></div></dl>
+      <a className="source-link" href={`https://explore.openaq.org/locations/${station.id}`} target="_blank" rel="noreferrer">Open station <ArrowRight size={14} /></a>
+    </div>}
+    {station?.kind === 'cpcb-relay' && <IndiaReport station={station} stale={stationStatus === 'stale' || now - station.time > 3 * HOUR} />}
+    {env.india && <IndiaReport station={env.india.station} stale={env.india.status === 'stale' || now - env.india.station.time > 3 * HOUR} />}
+    <p className="muted text-sm">Station readings can differ by location. Use CPCB for official India National AQI and advisories.</p>
     <SourceLink id="cpcb" />
   </section>;
 }
@@ -147,20 +159,23 @@ function StationPanel({ env, now }: { env: Environment; now: number }) {
 export function AirOverview({ env, now, profile, hindi, city, loading }: Shared & { city: City; loading: boolean }) {
   const actions = dailyActions(env, profile, now);
   return <div className="dashboard">
-    <Hero env={env} city={city} now={now} loading={loading} />
-    <CleanerWindow env={env} now={now} profile={profile} loading={loading} />
-    <Forecast env={env} now={now} loading={loading} />
     <section className="card actions-card">
-      <CardTitle icon={<ShieldCheck size={20} />} title="Today’s actions" sub="Based on your household settings" />
+      <CardTitle icon={<ShieldCheck size={20} />} title="Today’s actions" sub={city.name + ' · Based on your household settings'} />
       <div className="mini-actions">{[actions[0], actions[1], actions[3]].map((action, index) => {
         const Icon = [CalendarDays, Wind, House][index];
         return <a key={action.id} href={index === 2 ? '#indoor' : '#planner'} className="mini-action">
           <span><Icon size={17} /></span><div><strong>{action.title}</strong><p>{hindi && action.hindi ? <span lang="hi">{action.hindi}</span> : action.body}</p></div><ChevronRight size={15} />
         </a>;
       })}</div>
-      <a href="#assistant" className="text-link"><Sparkles size={16} /> Ask about your day <ArrowRight size={16} /></a>
+      <div className="plan-links">
+        <a href="#planner" className="button primary">Personalise my plan <ArrowRight size={16} /></a>
+        <a href="#assistant" className="text-link"><Sparkles size={16} /> Ask about your day <ArrowRight size={16} /></a>
+      </div>
     </section>
-    <StationPanel env={env} now={now} />
+    <CleanerWindow env={env} now={now} profile={profile} loading={loading} />
+    <Hero env={env} city={city} now={now} loading={loading} />
+    <StationPanel env={env} now={now} loading={loading} />
+    <Forecast env={env} now={now} loading={loading} />
     <section className="card weather-card">
       <CardTitle icon={<Wind size={20} />} title="Local weather" sub={env.weather ? 'Open-Meteo model · ' + dateTime(env.weather.time) : 'Current weather estimate unavailable'} />
       <div className="weather-grid">

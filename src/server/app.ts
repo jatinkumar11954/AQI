@@ -44,7 +44,7 @@ export function createApp({
       context.header('Access-Control-Max-Age', '600');
       return context.body(null, 204);
     }
-    if (context.req.path !== '/api/health') {
+    if (context.req.path !== '/api/health' && context.req.path !== '/api/ready') {
       const ip = context.env?.clientAddress ?? 'local';
       const isChat = context.req.path === '/api/ask';
       if (!limit((isChat ? 'ask:' : 'read:') + ip, isChat ? 5 : 36)) {
@@ -56,6 +56,11 @@ export function createApp({
   });
 
   app.get('/api/health', context => context.json({ status: 'ok' }));
+  app.get('/api/ready', context => {
+    const origin = context.env?.SAANS_PUBLIC_ORIGIN;
+    if (origin && !httpsOrigin(origin)) return context.json({ status: 'not_ready' }, 503);
+    return context.json({ status: 'ready' });
+  });
   app.get('/api/places', async context => {
     const query = searchSchema.safeParse(context.req.query('q'));
     if (!query.success) return context.json(issue('INVALID_SEARCH', 'Enter a city or postcode with 2–64 characters.'), 400);

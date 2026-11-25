@@ -162,3 +162,23 @@ describe('ventilation, dailyActions, and catalog sources', () => {
     expect(CITIES.length).toBeGreaterThanOrEqual(6);
   });
 });
+
+it('uses a fresh India-scale station AQI to veto outdoor advice even when OpenAQ PM is low', () => {
+  const env = makeEnv();
+  env.stationStatus = 'fresh';
+  env.station = {
+    kind: 'openaq', id: 42, name: 'OpenAQ', owner: 'Test owner', provider: 'OpenAQ', distance: 1,
+    pm25: { value: 10, time: MIDNIGHT_IST }, pm10: null,
+  };
+  env.india = {
+    status: 'fresh',
+    station: {
+      kind: 'cpcb-relay', name: 'CPCB relay', owner: 'Test owner', provider: 'Relay', distance: 2,
+      aqi: 410, time: MIDNIGHT_IST, pm25Index: 410, pm10Index: null,
+    },
+  };
+  expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
+  expect(findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST).usable).toBeNull();
+  env.india.status = 'stale';
+  expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(false);
+});

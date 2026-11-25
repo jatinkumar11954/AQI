@@ -61,7 +61,8 @@ it('reads OpenAQ mass sensors by ID, rejects unknown and future values', async (
   const app = createApp({ fetcher, clock: () => NOW });
   const reply = await (await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' })).json();
   expect(reply.station).toMatchObject({ kind: 'openaq', id: 8, pm25: { value: 81 }, pm10: null });
-  expect(fetcher.mock.calls.some(([target]) => target.hostname === 'api.dharun.dev')).toBe(false);
+  expect(reply.india).toMatchObject({ status: 'fresh', station: { kind: 'cpcb-relay', aqi: 123 } });
+  expect(fetcher.mock.calls.some(([target]) => target.hostname === 'api.dharun.dev')).toBe(true);
 });
 
 it('uses the relay when OpenAQ rejects credentials and marks old values stale', async () => {
@@ -217,4 +218,30 @@ it('prefers an active OpenAQ monitor over a closer inactive record', async () =>
   const app = createApp({ fetcher, clock: () => NOW });
   const response = await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' });
   expect(await response.json()).toMatchObject({ stationStatus: 'fresh', station: { kind: 'openaq', id: 2, pm25: { value: 42.5 } } });
+});
+
+it('keeps readiness independent of providers and reports invalid public origin configuration', async () => {
+  const fetcher = vi.fn(async () => json({}, 503));
+  const app = createApp({ fetcher });
+  expect(await (await app.request('/api/health')).json()).toEqual({ status: 'ok' });
+  const ready = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://example.github.io' });
+  expect(ready.status).toBe(200);
+  expect(await ready.json()).toEqual({ status: 'ready' });
+  const invalid = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://example.github.io/AQI/' });
+  expect(invalid.status).toBe(503);
+  expect(await invalid.json()).toEqual({ status: 'not_ready' });
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('coalesces a burst of independent clients using the same city', async () => {
+  const fetcher = vi.fn(async target => baseFeed(target));
+  const app = createApp({ fetcher, clock: () => NOW });
+  const results = await Promise.all(Array.from({ length: 25 }, (_unused, i) =>
+    app.request(envPath, undefined, { clientAddress: 'client-' + i }),
+  ));
+  for (const response of results) {
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ airStatus: 'fresh', stationStatus: 'fresh' });
+  }
+  expect(fetcher).toHaveBeenCalledTimes(3);
 });

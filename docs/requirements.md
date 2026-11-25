@@ -1,13 +1,14 @@
-# Requirements and implementation plan
+# Requirements and verification matrix
 
-| Requirement | Implementation | Verification |
+| Requirement | Implemented feature | Reproducible verification |
 |---|---|---|
-| Observed pollution | India API relay of CPCB station AQI and PM sub-indices. Optional OpenAQ for measured concentrations. Separate official CPCB link. | Verify endpoint authentication and public station coverage. Exercise mapping and stale observations with fixtures. |
-| Air quality and weather | Open-Meteo CAMS model, US AQI and PM hourly forecast. Separate weather and observation views. | Smoke-test real feeds. Verify partial failures, nulls and drift. |
-| Household planner | City, work/commute, schedule, household and affordability rules. Conservative, forecast-gated time windows. | Test scheduling, sensitive groups, hazardous and missing weather/air cases. |
-| Indoor and sustainable routines | Referenced action catalog, ventilation guidance, budget filters and checklist. | Verify source and accessibility of each action. |
-| Impact and community | Petrol trip scenarios, spending, outdoor PM proxy and aggregate hypothetical participation. | Independently check equations and invalid input behavior. |
-| Gemini | Developer API selects reviewed answers using environment and profile context, with explicit rules fallback. | Test configured request shape, safe output, quota and availability fallback. |
-| UX and release | Mobile-first forecasts, sample profiles, keyboard and accessible data, production build. | Browser journeys, axe, contract tests, performance, security review, deployed smoke checks. |
-
-Build forecast and advice first, then household and indoor workflows, impact and Gemini. Verify each boundary before packaging and publishing. Keep numerical output and safety guidance deterministic.
+| Observed Indian air quality with source, time and freshness | Today shows nearby OpenAQ measured PM and CPCB relay India-scale station AQI when available; CPCB official link and 3 h threshold | `tests/api.test.ts` covers both sources, missing pollutants and stale report handling. `scripts/smoke.mjs` and public browser checks cover actual reporting cities. |
+| Hourly outlook and current weather | Separate CAMS US AQI, PM2.5/PM10, 24h/48h chart/table and modeled local weather | `tests/api.test.ts` exercises partial outages. `tests/journeys.spec.ts` covers metric, range, table and city changes. |
+| Household personalization | City, work type and hours, commute, flexible activity, sensitive family, budget and saved checklist | `tests/planner.test.ts` exercises overnight scheduling, blocked and eligible windows and sensitive profiles. Browser journeys cover profiles and persistence. |
+| Low-emission routines and indoor air | Reviewed trips, commute and sustainable routines with trade-offs; budget tiers, current ventilation guidance and citations | `tests/planner.test.ts` and `tests/assistant.test.ts` cover safety rules and missing or conflicting data. Browser journeys cover budget tiers and checklist. |
+| Explainable routine comparison and community projections | Signed petrol CO₂ and fuel/fare estimates, community multiplier and outdoor PM2.5 proxy | `tests/impact.test.ts` checks hand-worked scenarios and invalid values. Browser journeys edit inputs and open assumptions. |
+| Genuine contextual Gemini with deterministic safety | Validated one- or two-topic classifications, catalog answers, contextual rules and labeled fallback | `tests/api.test.ts` and `tests/assistant.test.ts` cover structured output, privacy and injection boundaries, malformed replies, 429, and coalescing. Public smoke exercises deployed Gemini. |
+| Reliability and efficiency | Provider time and size limits, coalescing, bounded caches, request limits and cold-start recovery | `tests/api.test.ts`, `tests/data.test.ts`, `tests/server.test.ts` and the browser cold-start journey. Lighthouse and live timings in the [evaluation](evaluation.md). |
+| Security and privacy | Server-only keys, strict origin checking, schema and body validation, fixed providers, contact detail guard and data minimization | Contract tests in `tests/api.test.ts`, npm advisory scan, credential-pattern scan and built bundle inspection. |
+| Mobile and standards-based accessibility | Responsive views, keyboard and focus controls, chart selects and table, Hindi quick tips, and sample profiles | Desktop and mobile Chromium exercise the full journeys and axe WCAG 2.2-tagged rules. Scope and limitations in the [evaluation](evaluation.md). |
+| Reproducible release and judging | GitHub Actions, public Pages and Render, documentation and evaluator profiles | CI runs typecheck, coverage, build and Playwright. [API contract](api.md), [demo and evaluator samples](demo.md), [journal](journal.md), [LinkedIn draft](linkedin-draft.md). |

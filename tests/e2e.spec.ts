@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const PAGES = [
-  { hash: '#today', heading: 'Air quality today' },
+  { hash: '#today', heading: 'Your air plan today' },
   { hash: '#planner', heading: 'Plan your day' },
   { hash: '#indoor', heading: 'Make home air cleaner' },
   { hash: '#impact', heading: 'Compare your routines' },
@@ -12,7 +12,7 @@ const PAGES = [
 test.describe('SaansAI end-to-end journeys and accessibility', () => {
   test('navigates all views, searches cities, updates planner, runs impact and assistant', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Air quality today' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your air plan today' })).toBeVisible();
     await expect(page.locator('.readout strong')).toHaveText('88');
 
     // Open city picker and search Pune

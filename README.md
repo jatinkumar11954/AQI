@@ -1,41 +1,30 @@
 # SaansAI — Urban Air Quality Assistant
 
-SaansAI helps Indian households plan daily outdoor activities, commutes, indoor air hygiene, and routine shifts around hourly air quality forecasts and nearby monitoring station reports.
+SaansAI helps Indian households decide what to do on polluted days. Start with [today’s action plan](https://jatinkumar11954.github.io/AQI/), select a city and try a sample household. No account or API key is required to use the public application.
 
-## Key Capabilities
-
-- **Hourly Regional Forecast (`Today`)**: Displays modeled US AQI, PM2.5, PM10, weather context (Open-Meteo CAMS & Weather), and separate observed station data (OpenAQ v3 and/or CPCB station relay) with explicit timestamps and staleness checks—never conflating single station snapshots with an official India National AQI.
-- **Household Daily Planner (`Daily planner`)**: Filters 24-hour forecasts by sensitive groups (children, older adults, respiratory sensitivity), work shifts (including overnight blocks), commute mode, and activity type to surface conservative, forecast-gated time windows alongside a persistent daily checklist.
-- **Indoor & Low-Emission Guidance (`Indoor air`)**: Source-linked EPA and AirNow recommendations across zero-cost, low-budget, and HEPA filtration tiers, plus ventilation gating against outdoor pollution and ambient temperature (`18–32 °C`).
-- **Routine & Exposure Simulator (`Impact simulator`)**: Deterministic calculator comparing petrol use, fuel/fare savings, tailpipe CO₂ proxy (`2.34 kg CO₂/L`), hypothetical community scaling, and hourly outdoor PM2.5 exposure proxy (`µg·h/m³`).
-- **Source-Grounded Assistant (`Ask SaansAI`)**: Uses Gemini Developer API strictly as a structured JSON topic classifier (`temperature: 0`, strict `TOPICS` enum schema) with automatic fallback to deterministic local rules when unconfigured, quota-limited, or unavailable. All advice wording, numbers, and source links are selected deterministically from the app’s reviewed catalog.
+- **Today and Daily planner** combine modeled US AQI and weather with separately labeled station reports. Set work hours, commute, family needs, activity and budget to get cautious time windows and a daily checklist.
+- **Indoor air** explains source control, ventilation, filtration and low-emission routines across three budget tiers.
+- **Impact simulator** compares petrol use, fuel and fare spending, hypothetical household participation and outdoor PM2.5 concentration-time using documented formulas.
+- **Ask SaansAI** uses Gemini to choose up to two reviewed guidance topics from a question and current context. The application calculates numbers, applies safety rules and renders cited answers. Rules mode remains available when Gemini is unavailable.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  UI[React household views] --> API[Hono API]
-  UI --> RULES[Deterministic planner and impact rules]
-  UI -. keyless Pages mode .-> CAMS
-  UI -. keyless Pages mode .-> STATION
-  API --> CACHE[Bounded caches and rate limits]
-  CACHE --> CAMS[Open-Meteo CAMS and weather]
-  CACHE --> STATION[CPCB relay / optional OpenAQ v3]
-  CACHE --> CITY[India geocoding]
-  API --> GEMINI[Optional Gemini topic classification]
-  API --> RULES
-  RULES --> OUTPUT[Reviewed guidance and documented estimates]
+  USER[Household] --> PAGES[GitHub Pages · React and TypeScript]
+  PAGES --> RULES[Planner, checklist and simulator]
+  PAGES -->|HTTPS · allowed Pages origin| API[Render · Hono API]
+  API --> CACHE[Bounded caches and request limits]
+  CACHE --> CAMS[Open-Meteo · CAMS, weather and geocoding]
+  CACHE --> RELAY[India API · CPCB station indices]
+  CACHE --> OPENAQ[OpenAQ v3 · measured concentrations]
+  API -->|Question and selected context| GEMINI[Gemini · approved topic IDs]
+  GEMINI --> CATALOG[Application · reviewed guidance and citations]
+  API --> CATALOG
+  CATALOG --> PAGES
 ```
 
-### Security and privacy
-
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide icons, and self-hosted Fontsource fonts (`Manrope`, `DM Sans`).
-- **Server / Edge API**: Hono (`src/server/app.ts`) running on either Node (`src/server/index.ts`) or Cloudflare Workers (`src/server/worker.ts`).
-- **Safety & Hardening**:
-  - Strict `zod` validation for coordinates (`6–38°N, 67–98°E`), search strings, household profiles, and assistant requests.
-  - Same-origin checks, `4096`-byte body limits, per-IP rate limiting, upstream caching with bounded stale fallback, and `no-store` headers on API responses.
-  - Strict Content-Security-Policy (`default-src 'self'`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
-  - API keys (`OPENAQ_API_KEY`, `GEMINI_API_KEY`) stay strictly server-side and are never committed or exposed to client bundles.
+The server validates requests with Zod, caps JSON bodies at 4 KiB, and sets a restrictive content policy. Upstream responses are size-limited and requests use bounded timeouts. API keys stay in the Render secret store or the ignored local environment file. Household settings and the checklist are stored in the browser. Read [the API contract](docs/api.md) and [data and privacy methodology](docs/methodology.md).
 
 ## Getting Started
 
@@ -59,7 +48,8 @@ See [.env.example](.env.example):
 - `PORT` (default `4173`)
 - `OPENAQ_API_KEY` (optional, server-only)
 - `GEMINI_API_KEY` (optional, server-only)
-- `GEMINI_MODEL` (optional, defaults to `gemini-3.5-flash-lite`)
+- `GEMINI_MODEL` (optional, defaults to [`gemini-3.5-flash-lite`](https://aistudio.google.com/docs/models/gemini-3.5-flash-lite))
+- `GEMINI_DAILY_LIMIT` (optional, defaults to 100 attempted classifications per process in a 24-hour window)
 - `SAANS_PUBLIC_ORIGIN` (optional, exact HTTPS GitHub Pages origin for cross-origin API access)
 
 ## Verification
@@ -67,34 +57,22 @@ See [.env.example](.env.example):
 ```bash
 npm run check      # TypeScript strict typecheck
 npm run build      # Vite client + Node server (dist/server.mjs) + Worker bundle (dist/worker.mjs)
-npm test           # Vitest unit & API contract tests
+npm run test:coverage # Unit and API tests with a 90% critical statements and lines gate
 npx playwright install chromium
-npm run test:e2e   # Desktop/mobile Chromium journeys and axe WCAG 2.1 A/AA checks
+npm run test:e2e   # Desktop/mobile Chromium journeys and axe WCAG 2.2 A/AA checks
 node scripts/smoke.mjs  # Live-provider smoke against a running local production build
 ```
 
 ## Deployment
 
-- **GitHub Pages**. The [workflow](.github/workflows/pages.yml) verifies and deploys `dist/pages` on pushes to `main`. Select **GitHub Actions** as the Pages publishing source. `npm run build:pages` produces the keyless site with relative asset links. It fetches the public forecast, weather, and CPCB relay directly and uses local rules for Q&A.
-- **Optional Pages API**. Host the Node or Worker backend separately over HTTPS. Set `SAANS_PUBLIC_ORIGIN` on that backend to the Pages origin such as `https://username.github.io`. Set the GitHub repository Actions variable `SAANS_API_BASE_URL` to the backend's HTTPS origin and rerun the workflow. Put API keys only in that backend's secret store. GitHub Pages serves static assets. [GitHub Pages documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
-- **GitHub Pages (Static SPA + Direct Public Feeds)**:
-  Automated via [.github/workflows/pages.yml](.github/workflows/pages.yml) on push to `main`:
-  ```bash
-  npm run build:pages
-  ```
-  Outputs to `dist/pages` (`vite build --mode pages`), fetching public Open-Meteo and CPCB relay feeds directly in the browser with client-side deterministic rules in `Ask SaansAI` (or via an optional HTTPS backend set in `SAANS_API_BASE_URL`).
-- **Node.js Production**:
-  ```bash
-  npm run build
-  npm start
-  ```
-- **Docker**:
-  ```bash
-  docker build -t saansai .
-  docker run -p 4173:4173 --env-file .env saansai
-  ```
-- **Cloudflare Workers**:
-  Configured via [wrangler.toml](wrangler.toml) using `npm run build` (`dist/worker.mjs` with embedded static assets).
+The production frontend is on [GitHub Pages](https://jatinkumar11954.github.io/AQI/) and the live API is on [Render](https://aqi-0xk3.onrender.com/api/ready).
+
+1. On GitHub, set Pages publishing to **GitHub Actions**. The [workflow](.github/workflows/pages.yml) verifies each push to `main` and publishes `dist/pages` with relative asset paths.
+2. Set the GitHub Actions repository variable `SAANS_API_BASE_URL` to the Render HTTPS origin. This is a public build setting.
+3. On Render, use `npm ci && npm run build` as the build command and `npm start` as the start command. Set `SAANS_PUBLIC_ORIGIN` to the exact Pages origin, for example `https://jatinkumar11954.github.io`, without a repository path. Set optional API keys in Render’s environment settings. Use `/api/ready` as the health check path.
+4. Run `node scripts/smoke.mjs https://aqi-0xk3.onrender.com` after the release. Run the public UI separately to verify the Pages-to-Render request path.
+
+A Pages build without an API origin fetches public feeds directly and uses Rules mode. Free Render instances may need about a minute to wake after being idle. Docker and Cloudflare Worker build targets are also included. [Render free instance limits](https://render.com/docs/free)
 
 ## Documentation & PromptWars Artifacts
 

@@ -4,7 +4,7 @@ import { PROFILES, SOURCES, type City, type Environment, type Profile } from '..
 import { dailyActions, formatDate, formatTime, futureHours, INDOOR, SUSTAINABLE, ventilation, type Action } from '../shared/planner';
 import { calculateImpact, DEFAULT_SCENARIO, outdoorProxy, PETROL_FACTOR, scenarioSchema, type Scenario } from '../shared/impact';
 import { type Answer } from '../shared/assistant';
-import { askSaansAI } from './data';
+import { askSaansAI, assistantBudgetMs } from './data';
 import { CleanerWindow } from './overview';
 import { CardTitle, SourceLink, useStored } from './ui';
 
@@ -20,7 +20,7 @@ const selectOptions = {
 function ActionText({ action, hindi }: { action: Action; hindi: boolean }) {
   return <><h3>{action.title}</h3><p>{action.body}</p>
     {hindi && action.hindi && <p lang="hi" className="hindi-tip">{action.hindi}</p>}
-    <details className="details"><summary>Why this helps</summary><p>{action.reason}</p><SourceLink id={action.source}/></details></>;
+    <details className="details"><summary>Why this helps and what to consider</summary><p>{action.reason}</p><p>{action.tradeoff}</p><SourceLink id={action.source}/></details></>;
 }
 
 export function Planner({ env, now, profile, hindi, city, setProfile, chooseCity, dayKey, loading }:
@@ -187,12 +187,13 @@ export function Improvement({ env, now }: { env: Environment; now: number }) {
 }
 
 const prompts = ['Should I open the windows?', 'How should I adjust my commute?', 'Can the children play outside?', 'What can I do about cooking smoke?'];
-const labels = { unconfigured: 'Gemini is unconfigured · Rules answer', quota: 'Gemini quota reached · Rules answer', unavailable: 'Gemini unavailable · Rules answer' };
+const labels = { unconfigured: 'Gemini is unconfigured · Rules answer', quota: 'Gemini quota reached · Rules answer', unavailable: 'Gemini unavailable · Rules answer', privacy: 'Contact details kept out of Gemini · Rules answer' };
 
 export function Assistant({ city, profile, hindi, env }: { city: City; profile: Profile; hindi: boolean; env: Environment }) {
   const [question, setQuestion] = useState('');
   const [entries, setEntries] = useState<{ question: string; answer: Answer }[]>([]);
   const [pending, setPending] = useState('');
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
   const fieldId = useId();
@@ -204,7 +205,9 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
     const controller = new AbortController();
     request.current = controller;
     setError(''); setQuestion(''); setPending(value);
-    const timeout = AbortSignal.timeout(14_000);
+    setSlow(false);
+    const wait = window.setTimeout(() => setSlow(true), 4500);
+    const timeout = AbortSignal.timeout(assistantBudgetMs);
     try {
       const answer = await askSaansAI(value, city, profile, hindi ? 'hi' : 'en', env, AbortSignal.any([controller.signal, timeout]));
       if (!controller.signal.aborted) setEntries(previous => [...previous.slice(-7), { question: value, answer }]);
@@ -214,8 +217,13 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
         setError(timeout.aborted ? 'The question timed out. Try again.' : (cause instanceof Error ? cause.message : 'The assistant is unavailable.'));
       }
     } finally {
-      if (!controller.signal.aborted) setPending('');
+      window.clearTimeout(wait);
+      if (!controller.signal.aborted) { setSlow(false); setPending(''); }
     }
+  }
+  function cancel() {
+    request.current?.abort();
+    setQuestion(pending); setPending(''); setSlow(false);
   }
   function submit(event: FormEvent) { event.preventDefault(); void ask(question); }
 
@@ -227,10 +235,13 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
         {entries.map(({ question: text, answer }, index) => <article key={index + text}>
           <div className="question-bubble">{text}</div>
           <div className="answer-bubble"><span className="eyebrow">{answer.mode === 'gemini' ? 'GEMINI · SOURCE-GROUNDED' : answer.status ? labels[answer.status] : 'Rules answer'}</span>
-            <p>{answer.text}</p><p className="muted">{answer.context}</p>
+            <p>{answer.text}</p>{answer.followUp && <p>{answer.followUp}</p>}<p className="muted">{answer.context}</p>
             <div className="answer-sources">{answer.sources.map(id => <SourceLink key={id} id={id}/>)}</div></div>
         </article>)}
-        {pending && <p className="empty" role="status">Checking your context…</p>}
+        {pending && <div className="empty">
+          <p role="status">{slow ? 'Still waiting for the assistant. The service can take longer after being idle.' : 'Checking your context…'}</p>
+          <button className="button mt-2" type="button" onClick={cancel}>Cancel question</button>
+        </div>}
       </div>
       {error && <p className="notice" role="alert">{error}</p>}
       <form className="assistant-form" onSubmit={submit}>
@@ -242,8 +253,8 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
     <section className="card">
       <CardTitle icon={<CircleHelp size={20}/>} title="How answers are grounded"/>
       <div className="guidance"><Signal icon={<CalendarDays size={18}/>}>Plans use your selected city, the current model and household settings.</Signal>
-        <Signal icon={<ShieldCheck size={18}/>}>Gemini identifies the question topic. Reviewed guidance, source links and calculations come from SaansAI.</Signal>
-        <Signal icon={<House size={18}/>}>Questions and household settings can be sent to Gemini. Keep names, addresses and medical information out of the question.</Signal></div>
+        <Signal icon={<ShieldCheck size={18}/>}>Gemini selects the guidance most relevant to your question and local conditions. SaansAI supplies the wording, sources and calculations.</Signal>
+        <Signal icon={<House size={18}/>}>Questions and basic activity settings can be sent to Gemini. Keep names, addresses and medical information out of questions.</Signal></div>
       <SourceLink id="activity" short={SOURCES.activity.title} />
     </section>
   </div>;

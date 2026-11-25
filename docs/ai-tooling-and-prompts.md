@@ -7,7 +7,7 @@ This document records the actual AI workflow used across the development and sub
 | Phase | Environment / Tooling | Scope of Work |
 |---|---|---|
 | **Phase 1: Core Prototype & Feeds** | Earlier local workspace generation + Antigravity CLI (`agy`) planning query | Mapped [requirements.md](requirements.md), verified Open-Meteo & OpenAQ behavior, and built the shared domain logic (`src/shared/*`), Hono server (`src/server/{index,app,environment,gemini,upstream,worker}.ts`), CPCB relay fallback, React views (`src/client/{main,overview,sections,ui}.tsx`), and baseline test/config files (`tests/{api.test.ts,planner.test.ts,fixtures.ts,journeys.spec.ts}`). |
-| **Phase 2: Completion, Hardening & Publishing** | **Google Antigravity** (primary environment, Gemini 4 Hydrogen) | Audited the workspace, hardened `.gitignore` to exclude all local tool configs/IDE files/secrets, implemented `src/client/styles.css`, pure Web-API `src/server/worker-assets.mjs`, `scripts/build-worker.mjs`, `wrangler.toml`, `Dockerfile`, `.dockerignore`, additional unit/E2E specs (`tests/{assistant.test.ts,impact.test.ts,server.test.ts,e2e.spec.ts}`), `README.md`, prompt evolution docs, and published to GitHub (`git@github.com:jatinkumar11954/AQI.git`). |
+| **Phase 2: Completion, Hardening & Publishing** | **Google Antigravity** | Audited the workspace, hardened `.gitignore` to exclude all local tool configs/IDE files/secrets, implemented `src/client/styles.css`, pure Web-API `src/server/worker-assets.mjs`, `scripts/build-worker.mjs`, `wrangler.toml`, `Dockerfile`, `.dockerignore`, additional unit/E2E specs (`tests/{assistant.test.ts,impact.test.ts,server.test.ts,e2e.spec.ts}`), `README.md`, prompt evolution docs, and published to GitHub (`git@github.com:jatinkumar11954/AQI.git`). |
 
 ## 2. Prompt Evolution
 
@@ -23,8 +23,14 @@ This document records the actual AI workflow used across the development and sub
    - *Goal*: Ensure the repository excludes local tool configs/caches/logs/secrets, preserves genuine Git commits without fabricated history, includes deployment/documentation artifacts, and publishes cleanly to GitHub via SSH.
    - *Outcome*: Completed missing stylesheet/worker-asset/deployment modules, removed duplicate declaration files, verified `tsc --noEmit` and `npm run build` (Vite client + Node server + Cloudflare Worker bundle), scanned all tracked files for credentials/sensitive configs, and pushed to `main`.
 
-## Final review prompts
+## Earlier review prompts
 
 The first direct Antigravity architecture prompt was blocked by interactive tool permissions. A tool-free version asked for three failure modes involving modeled forecasts, sensitive households and catalog-constrained Gemini. A longer source-excerpt audit timed out. A shorter independent prompt asked what evidence would verify schedule overlap and the simulator’s exposure and fuel calculations. It returned checks for full-interval overlap and concentration-time units, which were compared with the implementation and tests.
 
 The user supplied the requirements and evaluation criteria. Google Antigravity contributed styling, Worker bundling, GitHub Pages setup, tests and documentation alongside earlier prototype scaffolding. Test counts and live observations came from executed checks, and the public post is a draft.
+
+## Production hardening and runtime prompt revision
+
+The user asked for an independent audit of the live Pages and Render release with measurable security, performance and accessibility gates. Codex reviewed the existing deployment, then generated and verified the release changes. The earlier Antigravity review and its actual artifacts are described above. The user supplied the challenge brief, followed the provider setup and confirmed the Render deployment.
+
+The former runtime prompt asked for one topic. The revised system instruction asks for a primary topic and permits a distinct second topic only when it answers another part of the question. It explicitly marks the question as untrusted data. Runtime input now identifies each AQI standard separately and includes only the flags needed to prioritize the answer. The response schema has finite topic enums and rejects unexpected fields. The app supplies the numbers, environmental interpretation and wording. A malformed response, outage or quota limit is labeled in the UI. See [the runtime prompt](../src/server/gemini.ts) and [API integration tests](../tests/api.test.ts).

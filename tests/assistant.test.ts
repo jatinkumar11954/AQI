@@ -110,3 +110,51 @@ describe('createAssistant Gemini boundary and fallback behavior', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+
+it('deduplicates simultaneous questions and uses the daily budget for distinct prompts', async () => {
+  const fetcher = vi.fn(async () => Response.json({ candidates: [{
+    finishReason: 'STOP', content: { parts: [{ text: '{"topic":"commute","nextTopic":"ventilation"}' }] },
+  }] }));
+  const assistant = createAssistant(fetcher, () => NOW);
+  const context = sampleEnv();
+  const keys = { GEMINI_API_KEY: 'test-key', GEMINI_DAILY_LIMIT: '1' };
+  const ask = () => assistant('How can I plan my commute and air my room?', DEFAULT_PROFILE, context, 'en', keys);
+  const answers = await Promise.all(Array.from({ length: 12 }, ask));
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  for (const answer of answers) {
+    expect(answer).toMatchObject({ mode: 'gemini', sources: ['activity', 'clean'] });
+    expect(answer.followUp).toMatch(/brief opening/);
+  }
+  const next = await assistant('Can I exercise outside?', DEFAULT_PROFILE, context, 'en', keys);
+  expect(next).toMatchObject({ mode: 'rules', status: 'quota' });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it('keeps questions containing email or phone details out of Gemini requests', async () => {
+  const fetcher = vi.fn();
+  const assistant = createAssistant(fetcher, () => NOW);
+  for (const question of ['Should I open windows? name@example.org', 'My number is +91 98765 43210. Can I walk?']) {
+    const answer = await assistant(question, DEFAULT_PROFILE, sampleEnv(), 'en', { GEMINI_API_KEY: 'test' });
+    expect(answer).toMatchObject({ mode: 'rules', status: 'privacy' });
+    expect(answer.text).not.toContain('98765');
+  }
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it('keeps real context while dropping schedule hours and household details from the Gemini payload', async () => {
+  const fetcher = vi.fn(async (_target: URL, init?: RequestInit) => {
+    const raw = JSON.parse(String(init?.body));
+    const context = JSON.parse(raw.contents[0].parts[0].text);
+    expect(context).toMatchObject({ usAqiModel: 88, sensitiveHousehold: true });
+    expect(context).not.toHaveProperty('household');
+    expect(context).not.toHaveProperty('workStart');
+    expect(context).not.toHaveProperty('budget');
+    return Response.json({ candidates: [{
+      finishReason: 'STOP', content: { parts: [{ text: '{"topic":"commute","nextTopic":"commute"}' }] },
+    }] });
+  });
+  const assistant = createAssistant(fetcher, () => NOW);
+  const answer = await assistant('How should I adjust my commute?', { ...DEFAULT_PROFILE, children: true }, sampleEnv(), 'en', { GEMINI_API_KEY: 'test' });
+  expect(answer.mode).toBe('gemini');
+  expect(answer.followUp).toBeUndefined();
+});

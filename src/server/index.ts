@@ -11,6 +11,7 @@ const keys = {
   OPENAQ_API_KEY: process.env.OPENAQ_API_KEY,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   GEMINI_MODEL: process.env.GEMINI_MODEL,
+  GEMINI_DAILY_LIMIT: process.env.GEMINI_DAILY_LIMIT,
   SAANS_PUBLIC_ORIGIN: process.env.SAANS_PUBLIC_ORIGIN,
 };
 if (dev) {

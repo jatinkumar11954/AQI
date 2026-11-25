@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowUpRight, MapPin, Search, X } from 'lucide-react';
-import { searchCities } from './data';
+import { environmentBudgetMs, searchCities } from './data';
 import { CITIES, SOURCES, type City, type SourceId } from '../shared/model';
 
 export function useStored<T>(key: string, initial: T, schema?: { parse(value: unknown): T }) {
@@ -60,7 +60,7 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
     request.current = controller;
     setBusy(true); setError(''); setResults(null);
     try {
-      const places = await searchCities(query.trim(), AbortSignal.any([controller.signal, AbortSignal.timeout(8500)]));
+      const places = await searchCities(query.trim(), AbortSignal.any([controller.signal, AbortSignal.timeout(environmentBudgetMs)]));
       if (!controller.signal.aborted) setResults(places);
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof Error && cause.name !== 'TimeoutError' ? cause.message : 'City search timed out. The suggested cities are still available.');

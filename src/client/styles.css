@@ -359,7 +359,7 @@ select {
 }
 
 .hero {
-  grid-column: span 8;
+  grid-column: span 6;
   position: relative;
   overflow: hidden;
   border-radius: 20px;
@@ -583,13 +583,19 @@ select {
 }
 
 .actions-card {
-  grid-column: span 4;
+  grid-column: span 8;
 }
 
-.dashboard>.card:nth-child(5),
-.weather-card {
-  grid-column: span 6;
-}
+.station-card { grid-column: span 6; }
+.weather-card { grid-column: span 4; }
+
+.station-report + .station-report { border-top: 1px solid var(--border); padding-top: .9rem; }
+.station-report h3, .station-report p { margin: 0 0 .25rem; }
+.plan-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
+.plan-links .text-link { margin: 0; }
+.details summary, .source-link, .text-link { min-height: 28px; }
+html { scroll-padding-top: 5rem; }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 
 .card-heading {
   display: flex;
@@ -1385,7 +1391,7 @@ select {
   .window-card,
   .forecast-card,
   .actions-card,
-  .dashboard>.card:nth-child(5),
+  .station-card,
   .weather-card {
     grid-column: span 12;
   }
