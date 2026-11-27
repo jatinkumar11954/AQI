@@ -74,7 +74,9 @@ test('changes both travel scenarios and computes the forecast exposure proxy', a
   await expect(page.getByLabel('Current outdoor minutes')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByText(/Enter whole outdoor minutes/)).toBeVisible();
   await page.getByLabel('Current outdoor minutes').fill('25');
-  await page.getByLabel('Petrol vehicle efficiency (km/L)').fill('15');
+  await efficiency.fill('15.25');
+  await expect(efficiency).toHaveAttribute('aria-invalid', 'false');
+  expect(await efficiency.evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(true);
   await page.getByText('Formulas and assumptions').click();
   await expect(page.getByText(/Litres = distance/)).toBeVisible();
 });
@@ -142,6 +144,10 @@ test('keeps planner full-width, wraps mobile nav, and clears footer above floati
 
 test('passes automated accessibility checks on each page and the location dialog', async ({ page }) => {
   await fixture(page);
+  const cspErrors: string[] = [];
+  page.on('console', message => {
+    if (message.type() === 'error' && message.text().includes('Content Security Policy')) cspErrors.push(message.text());
+  });
   await page.goto('/');
   await gotForecast(page);
   for (const [label, section] of [
@@ -159,6 +165,30 @@ test('passes automated accessibility checks on each page and the location dialog
   await page.getByRole('button', { name: CITIES[0].name + ', India' }).click();
   const results = await new AxeBuilder({ page }).withTags(accessibilityTags).analyze();
   expect(results.violations.map(item => item.id)).toEqual([]);
+  expect(cspErrors).toEqual([]);
+});
+
+test('keeps the mobile header in place while a secondary view loads', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 823 });
+  await fixture(page);
+  let finish!: () => void;
+  const delay = new Promise<void>(resolve => { finish = resolve; });
+  await page.route('**/assets/planner-view-*.js', async route => {
+    await delay;
+    return route.continue();
+  });
+  try {
+    await page.goto('/#planner', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText('Opening this section…')).toBeVisible();
+    const topbar = page.locator('.topbar');
+    const position = () => topbar.evaluate(el => el.getBoundingClientRect().top + window.scrollY);
+    const loading = await position();
+    finish();
+    await expect(page.getByRole('heading', { name: 'Household settings' })).toBeVisible();
+    expect(Math.abs(await position() - loading)).toBeLessThanOrEqual(1);
+  } finally {
+    finish();
+  }
 });
 
 test('communicates a cold start and recovers without replacing household choices', async ({ page }) => {
@@ -185,33 +215,85 @@ test('communicates a cold start and recovers without replacing household choices
   await expect(page.getByLabel('Household budget')).toHaveValue('low');
 });
 
-test('retains the current city’s earlier model through a failed refresh and recovers on retry', async ({ page }) => {
-  let fail = false;
+for (const status of [200, 503]) test(`retains the earlier model through a ${status} outage and recovers on retry`, async ({ page }) => {
+  let outage = false;
   let requestCount = 0;
   await page.route('**/api/environment?*', async route => {
     requestCount++;
-    if (fail) {
-      await route.fulfill({ status: 503, json: { error: { message: 'Air data is temporarily unavailable.' } } });
-    } else {
-      await route.fulfill({ json: modeled(currentTime()) });
-    }
+    if (!outage) return route.fulfill({ json: modeled(currentTime()) });
+    const json = status === 200 ? { ...EMPTY_ENV, stationStatus: 'unavailable' } : { error: { message: 'Air data is temporarily unavailable.' } };
+    return route.fulfill({ status, json });
   });
 
   await page.goto('/');
   await gotForecast(page);
   await expect(page.locator('.readout strong')).toHaveText('82');
-  fail = true;
+  outage = true;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Showing the last data from this visit' })).toBeVisible();
   await expect(page.getByText('Earlier model', { exact: true })).toBeVisible();
   await expect(page.getByText('Forecast may be stale. Activity planning is paused.')).toBeVisible();
   await expect(page.locator('.readout strong')).toHaveText('82');
-  expect(requestCount).toBe(3);
+  expect(requestCount).toBe(status === 200 ? 2 : 3);
 
-  fail = false;
+  outage = false;
   await page.getByRole('button', { name: 'Retry live readings' }).click();
   await gotForecast(page);
   await expect(page.getByText('Showing the last data from this visit.', { exact: false })).toHaveCount(0);
+});
+
+test('keeps the dashboard usable on malformed air responses and repairs invalid saved checklist data', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('saans:checklist', 'null'));
+  await page.route('**/api/environment?*', route => route.fulfill({ json: {
+    airStatus: 'fresh', air: { current: { aqi: 82 }, fetchedAt: currentTime() },
+  } }));
+  await page.goto('/');
+  await expect(page.getByRole('status').filter({ hasText: 'The data service returned an invalid response.' })).toBeVisible();
+  await expect(page.getByText('No suitable window')).toBeVisible();
+  await nav(page, 'Daily planner').press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name: 'Plan your day' })).toBeFocused();
+  await expect(page.getByRole('status').filter({ hasText: '0 of 4 complete' })).toBeVisible();
+  await page.locator('.check-action input').first().check();
+  await expect(page.getByRole('status').filter({ hasText: '1 of 4 complete' })).toBeVisible();
+});
+
+test('discards location results when the search text changes, even during a request', async ({ page }) => {
+  let release!: () => void;
+  const delay = new Promise<void>(resolve => { release = resolve; });
+  let delayedSearch = false;
+  await page.route('**/api/places?*', async route => {
+    const term = new URL(route.request().url()).searchParams.get('q');
+    if (term === 'Pune') {
+      delayedSearch = true;
+      await delay;
+      return route.fulfill({ json: { places: [{ name: 'Pune', state: 'Maharashtra', lat: 18.52, lon: 73.86 }] } });
+    }
+    return route.fulfill({ json: { places: [CITIES[2]] } });
+  });
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'New Delhi, India' }).click();
+    const dialog = page.getByRole('dialog');
+    const input = dialog.getByRole('textbox');
+    const status = dialog.getByRole('status');
+    await input.fill('Pune');
+    await input.press('Enter');
+    await expect(status).toHaveText('Searching Indian cities…');
+    await expect.poll(() => delayedSearch).toBe(true);
+    await input.fill('Bengaluru');
+    await expect(status).toBeEmpty();
+    await input.press('Enter');
+    await expect(status).toHaveText('1 matching city found.');
+    release();
+    await page.unrouteAll({ behavior: 'wait' });
+    await expect(dialog.getByRole('button', { name: 'Bengaluru Karnataka' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Pune Maharashtra' })).toHaveCount(0);
+    await input.fill('Lucknow');
+    await expect(status).toBeEmpty();
+    await expect(dialog.getByText('SUGGESTED CITIES')).toBeVisible();
+  } finally {
+    release();
+  }
 });
 
 test('keeps earlier readings out of a newly selected city even when the previous request finishes late', async ({ page }) => {

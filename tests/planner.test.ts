@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, HOUR, SOURCES, type Environment } from '../src/shared/model';
+import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, HOUR, SOURCES, type Environment, type Profile } from '../src/shared/model';
 import {
   dailyActions,
   findWindows,
   freshAir,
+  futureHours,
   INDOOR,
   localHour,
   modelNow,
@@ -62,6 +63,11 @@ describe('planner risk and time helpers', () => {
     driftedCurrent.air!.current!.time = MIDNIGHT_IST + 901;
     expect(modelNow(driftedCurrent, MIDNIGHT_IST)).toBeNull();
   });
+
+  it('shows no forecast hours or timed recommendations when the model feed is missing', () => {
+    expect(futureHours(EMPTY_ENV, MIDNIGHT_IST, 24)).toEqual([]);
+    expect(findWindows(EMPTY_ENV, DEFAULT_PROFILE, MIDNIGHT_IST)).toEqual({ lower: null, usable: null });
+  });
 });
 
 describe('findWindows and nearbyParticleCaution', () => {
@@ -87,6 +93,30 @@ describe('findWindows and nearbyParticleCaution', () => {
 
     const exercise = findWindows(env, { ...DEFAULT_PROFILE, activity: 'exercise' }, MIDNIGHT_IST);
     expect(exercise.usable).toBeNull();
+  });
+
+  it('uses the sensitive household current AQI veto even if two future hours are cleaner', () => {
+    const env = makeEnv();
+    env.air!.hourly[7].aqi = 42;
+    env.air!.hourly[8].aqi = 48;
+    const profile = { ...DEFAULT_PROFILE, sensitive: true };
+    env.air!.current!.aqi = 100;
+    expect(findWindows(env, profile, MIDNIGHT_IST).usable?.peak).toBe(48);
+    env.air!.current!.aqi = 101;
+    expect(findWindows(env, profile, MIDNIGHT_IST)).toMatchObject({ lower: { peak: 48 }, usable: null });
+    expect(findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST).usable?.peak).toBe(48);
+  });
+
+  it('keeps the whole two-hour window inside the next 24 hours', () => {
+    const nextDay = MIDNIGHT_IST + 24 * HOUR;
+    const start = nextDay + 7 * HOUR;
+    const end = start + 2 * HOUR;
+    const profile = { ...DEFAULT_PROFILE, work: 'flexible' as const };
+    const hourly = [start, start + HOUR].map(time => ({ time, aqi: 40, pm25: 12, pm10: 20 }));
+    for (const now of [end - 24 * HOUR - 1, end - 24 * HOUR]) {
+      const env = makeEnv({ air: { hourly, current: { ...hourly[0], time: now }, fetchedAt: now } }, now);
+      expect(findWindows(env, profile, now).usable).toEqual(now + 24 * HOUR < end ? null : { start, end, peak: 40 });
+    }
   });
 
   it('supports overnight work blocks and blocks outings on high AQI or station caution', () => {
@@ -137,6 +167,23 @@ describe('findWindows and nearbyParticleCaution', () => {
     expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
     expect(findWindows(env, overnight, MIDNIGHT_IST).usable).toBeNull();
   });
+
+  it('honors a fresh PM10-only warning from either station feed', () => {
+    const env = makeEnv({ stationStatus: 'fresh', station: {
+      kind: 'openaq', id: 1, name: 'PM10 monitor', owner: 'Test owner', provider: 'OpenAQ', distance: 1,
+      pm25: null, pm10: { value: 155, time: MIDNIGHT_IST - 3 * HOUR },
+    } });
+    expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
+    expect(nearbyParticleCaution(env, MIDNIGHT_IST + 1)).toBe(false);
+
+    env.station = {
+      kind: 'cpcb-relay', name: 'PM10 relay', owner: 'Test owner', provider: 'CPCB', distance: 1,
+      aqi: null, pm25Index: null, pm10Index: 101, time: MIDNIGHT_IST,
+    };
+    expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(true);
+    env.station.pm10Index = 100;
+    expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(false);
+  });
 });
 
 describe('ventilation, dailyActions, and catalog sources', () => {
@@ -174,6 +221,24 @@ describe('ventilation, dailyActions, and catalog sources', () => {
     const childFamily = childActions.find(item => item.id === 'family')!;
     expect(childFamily.title).toBe('Plan for school and play');
     expect(childFamily.body.toLowerCase()).toContain('school');
+    const both = dailyActions(makeEnv(), { ...DEFAULT_PROFILE, children: true, seniors: true }, MIDNIGHT_IST);
+    expect(both.find(item => item.id === 'family')?.title).toBe('Plan for children and older adults');
+
+    const sensitive = dailyActions(makeEnv(), { ...DEFAULT_PROFILE, sensitive: true }, MIDNIGHT_IST);
+    expect(sensitive.find(item => item.id === 'family')?.title).toBe('Plan for sensitive family members');
+  });
+
+  const travelCases: { settings: Partial<Profile>; title: string; advice: string }[] = [
+    { settings: { work: 'outdoor', commute: 'two-wheeler' }, title: 'Plan lower-exposure work breaks', advice: 'indoor breaks' },
+    { settings: { work: 'flexible', commute: 'none' }, title: 'Adjust your travel routine', advice: 'an existing trip' },
+    { settings: { commute: 'walk' }, title: 'Adjust your travel routine', advice: 'minimise roadside waiting' },
+    { settings: { commute: 'car' }, title: 'Adjust your travel routine', advice: 'Avoid idling' },
+  ];
+  it.each(travelCases)('tailors $advice to $settings', ({ settings, title, advice }) => {
+    const actions = dailyActions(makeEnv(), { ...DEFAULT_PROFILE, ...settings }, MIDNIGHT_IST);
+    const commute = actions.find(action => action.id === 'commute');
+    expect(commute).toMatchObject({ title, body: expect.stringContaining(advice) });
+    expect(commute?.reason).toContain(settings.work === 'flexible' ? 'A flexible schedule' : '09:00–17:00 IST');
   });
 });
 

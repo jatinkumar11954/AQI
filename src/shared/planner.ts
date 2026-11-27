@@ -60,7 +60,7 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
   const ceiling = isSensitive(profile) || profile.activity !== 'errands' ? 50 : 100;
   const hours = futureHours(env, now, 24);
   const candidates: Window[] = [];
-  const eligible = (point: AirPoint) => {
+  const eligible = (point: AirPoint): point is AirPoint & { aqi: number } => {
     const h = localHour(point.time);
     const endHour = localHour(point.time + HOUR - 1);
     return point.aqi != null && h >= 7 && endHour < 20 && !atWork(profile, h) && !atWork(profile, endHour);
@@ -68,8 +68,9 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
   for (let index = 1; index < hours.length; index++) {
     const earlier = hours[index - 1];
     const later = hours[index];
-    if (later.time - earlier.time !== HOUR || !eligible(earlier) || !eligible(later)) continue;
-    candidates.push({ start: earlier.time, end: later.time + HOUR, peak: Math.max(earlier.aqi!, later.aqi!) });
+    const end = later.time + HOUR;
+    if (end > now + 24 * HOUR || later.time - earlier.time !== HOUR || !eligible(earlier) || !eligible(later)) continue;
+    candidates.push({ start: earlier.time, end, peak: Math.max(earlier.aqi, later.aqi) });
   }
   candidates.sort((a, b) => a.peak - b.peak || a.start - b.start);
   const lower = candidates[0] ?? null;

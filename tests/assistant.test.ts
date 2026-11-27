@@ -48,6 +48,17 @@ describe('assistant topic inference and deterministic wording', () => {
     const unsupported = composeAnswer('unsupported', DEFAULT_PROFILE, sampleEnv(), NOW, 'hi');
     expect(unsupported.text).toContain('खिड़की');
   });
+
+  it('cites the sources for an English AQI question and keeps off-topic guidance scoped', () => {
+    const sources = composeAnswer('sources', DEFAULT_PROFILE, sampleEnv(), NOW, 'en');
+    expect(sources.text).toMatch(/^The forecast uses the Open-Meteo CAMS US AQI\./);
+    expect(sources.sources).toEqual(['model', 'relay', 'openaq', 'cpcb']);
+
+    const unsupported = composeAnswer('unsupported', DEFAULT_PROFILE, EMPTY_ENV, NOW, 'en');
+    expect(unsupported.text).toContain('I can answer questions about outdoor timing');
+    expect(unsupported.sources).toEqual([]);
+    expect(unsupported.context).toContain('Current model AQI is unavailable');
+  });
 });
 
 describe('createAssistant Gemini boundary and fallback behavior', () => {
@@ -118,6 +129,23 @@ describe('createAssistant Gemini boundary and fallback behavior', () => {
     });
     expect(second.status).toBe('quota');
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends missing model data explicitly and falls back if Gemini returns only a thought part', async () => {
+    const fetcher = vi.fn(async (_target: URL, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body));
+      expect(JSON.parse(request.contents[0].parts[0].text)).toMatchObject({
+        usAqiModel: null, indiaStationAqi: null, activityWindowEligible: false,
+      });
+      return Response.json({ candidates: [{ finishReason: 'STOP', content: {
+        parts: [{ thought: true, text: '{"topic":"outdoors"}' }],
+      } }] });
+    });
+    const assistant = createAssistant(fetcher, () => NOW);
+    const answer = await assistant('Should I open the windows?', DEFAULT_PROFILE, EMPTY_ENV, 'en', { GEMINI_API_KEY: 'fixture-key' });
+    expect(answer).toMatchObject({ mode: 'rules', status: 'unavailable', sources: ['clean'] });
+    expect(answer.context).toContain('Current model AQI is unavailable');
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 });
 

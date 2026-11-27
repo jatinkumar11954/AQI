@@ -4,12 +4,12 @@ import { freshAir } from './planner.js';
 
 export const PETROL_FACTOR = 2.34;
 export const scenarioBounds = {
-  currentKm: { min: 0, max: 500, step: 0.1 },
-  alternativeKm: { min: 0, max: 500, step: 0.1 },
+  currentKm: { min: 0, max: 500, step: 'any' },
+  alternativeKm: { min: 0, max: 500, step: 'any' },
   days: { min: 1, max: 31, step: 1 },
-  efficiency: { min: 3, max: 100, step: 0.1 },
-  fuelPrice: { min: 0, max: 300, step: 0.1 },
-  alternativeCost: { min: 0, max: 5000, step: 0.1 },
+  efficiency: { min: 3, max: 100, step: 'any' },
+  fuelPrice: { min: 0, max: 300, step: 'any' },
+  alternativeCost: { min: 0, max: 5000, step: 'any' },
   households: { min: 1, max: 10_000, step: 1 },
   currentMinutes: { min: 0, max: 60, step: 1 },
   alternativeMinutes: { min: 0, max: 60, step: 1 },

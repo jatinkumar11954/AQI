@@ -1,9 +1,11 @@
 import { CalendarDays, Check, ShieldCheck, UsersRound } from 'lucide-react';
+import { z } from 'zod';
 import { PROFILES, type City, type Profile } from '../shared/model';
 import { dailyActions, formatDate } from '../shared/planner';
 import { ActionText, budgetNames, type GuidanceContext } from './action-text';
 import { CleanerWindow } from './overview';
-import { CardTitle, useStored } from './ui';
+import { CardTitle } from './ui';
+import { useStored } from './use-stored';
 
 const selectOptions = {
   work: [['office', 'On-site / office'], ['outdoor', 'Outdoor work'], ['remote', 'Work from home'], ['flexible', 'Flexible / no fixed hours']],
@@ -11,13 +13,14 @@ const selectOptions = {
   activity: [['errands', 'Errands'], ['exercise', 'Exercise / walk'], ['play', 'Outdoor play']],
   budget: Object.entries(budgetNames),
 } as const;
+const checklistSchema = z.object({ key: z.string(), ids: z.array(z.string()) });
 
 export function Planner({ env, now, profile, hindi, city, setProfile, chooseCity, dayKey, loading }:
   GuidanceContext & { city: City; setProfile: (profile: Profile) => void; chooseCity: (city: City) => void; dayKey: string; loading: boolean }) {
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => setProfile({ ...profile, [key]: value });
-  const [checked, setChecked] = useStored('saans:checklist', { key: '', ids: [] as string[] });
+  const [checked, setChecked] = useStored('saans:checklist', { key: '', ids: [] }, checklistSchema);
   const key = dayKey + ':' + city.lat + ',' + city.lon;
-  const active = checked.key === key && Array.isArray(checked.ids) ? checked.ids : [];
+  const active = checked.key === key ? checked.ids : [];
   const actions = dailyActions(env, profile, now);
   const done = actions.filter(item => active.includes(item.id)).length;
   const title = {

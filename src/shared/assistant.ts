@@ -3,12 +3,6 @@ import { dailyActions, INDOOR, modelNow, risk, SUSTAINABLE, ventilation } from '
 
 export const TOPICS = ['outdoors', 'commute', 'ventilation', 'cooking', 'filtration', 'family', 'impact', 'sources', 'unsupported'] as const;
 export type Topic = typeof TOPICS[number];
-export type Answer = {
-  mode: 'gemini' | 'rules'; text: string; context: string; sources: SourceId[];
-  status?: 'unconfigured' | 'quota' | 'unavailable' | 'privacy';
-  followUp?: string;
-};
-
 export function inferTopic(question: string): Topic {
   const rules: [Topic, RegExp][] = [
     ['ventilation', /ventilat|windows?|air out|खिड़की/i],

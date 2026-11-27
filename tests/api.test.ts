@@ -96,6 +96,20 @@ it('filters geocoding to Indian results, deduplicates identical labels, and retu
   expect(await (await app.request('/api/places?q=Noplace')).json()).toEqual({ places: [] });
 });
 
+it('keeps cached city results available when the shared geocoder budget is exhausted', async () => {
+  const fetcher = vi.fn(async () => json({ results: [] }));
+  const app = createApp({ fetcher, clock: () => NOW });
+  for (let index = 0; index < 24; index++) {
+    expect((await app.request('/api/places?q=Area' + index)).status).toBe(200);
+  }
+  const uncached = await app.request('/api/places?q=Area24');
+  expect(uncached.status).toBe(503);
+  expect(uncached.headers.get('Retry-After')).toBe('60');
+  expect(await uncached.json()).toMatchObject({ error: { code: 'UPSTREAM_LIMIT' } });
+  expect(await (await app.request('/api/places?q=area0')).json()).toEqual({ places: [] });
+  expect(fetcher).toHaveBeenCalledTimes(24);
+});
+
 it('skips OpenAQ monitors whose PM sensors have no recent readings and falls back to CPCB relay', async () => {
   const freshUtc = new Date((NOW - 900) * 1000).toISOString();
   const staleUtc = new Date((NOW - 60 * HOUR) * 1000).toISOString();
@@ -159,6 +173,17 @@ it('bounds in-flight cache lookups and expires stale copies', async () => {
   expect(await get('spot', fail)).toEqual({ stale: true, value: 'sample' });
   now = 31;
   await expect(get('spot', fail)).rejects.toThrow('upstream');
+});
+
+it('evicts the oldest cache entry when a new location exceeds capacity', async () => {
+  const get = createCache<string>(2, 10, 30, () => NOW);
+  await get('first', async () => 'first data');
+  await get('second', async () => 'second data');
+  await get('third', async () => 'third data');
+  const reload = vi.fn(async () => 'current data');
+  await expect(get('second', reload)).resolves.toEqual({ value: 'second data', stale: false });
+  await expect(get('first', reload)).resolves.toEqual({ value: 'current data', stale: false });
+  expect(reload).toHaveBeenCalledTimes(1);
 });
 
 it('drops oversized streamed upstream bodies without retrying them', async () => {

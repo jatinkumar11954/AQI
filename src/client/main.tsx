@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Activity, ArrowDownUp, ArrowRight, CalendarDays, ChevronDown, Compass, House, Info, Leaf, MapPin, RefreshCw, Sparkles, Wind } from 'lucide-react';
+import { z } from 'zod';
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/dm-sans';
 import './styles.css';
@@ -8,7 +9,9 @@ import { CITIES, DEFAULT_PROFILE, citySchema, profileSchema, type City } from '.
 import { dateKey, formatDate } from '../shared/planner';
 import { useAirReadings } from './use-air-readings';
 import { AirOverview } from './overview';
-import { LocationDialog, SourceLink, useStored } from './ui';
+import { LocationDialog } from './location-dialog';
+import { SourceLink } from './ui';
+import { useStored } from './use-stored';
 
 const Assistant = lazy(() => import('./assistant-view').then(({ Assistant }) => ({ default: Assistant })));
 const Improvement = lazy(() => import('./impact-view').then(({ Improvement }) => ({ default: Improvement })));
@@ -35,12 +38,13 @@ const intros: Record<Page, string> = {
   assistant: 'Ask about your forecast, household plan or indoor air.',
 };
 const getPage = () => pages.find(item => '#' + item.id === window.location.hash)?.id ?? 'today';
+const hindiSchema = z.boolean();
 
 function App() {
   const [page, setPage] = useState<Page>(getPage);
   const [city, setCity] = useStored('saans:city', CITIES[0], citySchema);
   const [profile, setProfile] = useStored('saans:profile', DEFAULT_PROFILE, profileSchema);
-  const [hindi, setHindi] = useStored<boolean>('saans:hindi', false);
+  const [hindi, setHindi] = useStored('saans:hindi', false, hindiSchema);
   const [locationOpen, setLocationOpen] = useState(false);
   const { env, error, now, refreshing, slow, reloadData } = useAirReadings(city);
   const key = city.lat + ',' + city.lon;
@@ -62,6 +66,9 @@ function App() {
   const loading = refreshing && !env.air;
   const dayKey = dateKey(now);
   const unavailable = !refreshing && env.airStatus === 'unavailable' && !env.station;
+  const readingIssue = error || (unavailable ? 'Live air readings are temporarily unavailable.' : '');
+  const readingStatus = slow ? 'Still connecting to the air data service. It may take about a minute after an idle period.'
+    : readingIssue && `${readingIssue} ${env.air || env.station || env.india ? 'Showing the last data from this visit.' : 'General guidance is still available.'}`;
   return <>
     <a href="#main-title" className="skip" onClick={event => { event.preventDefault(); document.getElementById('main-title')?.focus(); }}>Skip to content</a>
     <div className="shell">
@@ -100,11 +107,10 @@ function App() {
               <RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Updating' : 'Refresh'}
             </button>}
           </div>
-          {slow && <p className="notice" role="status">Still connecting to the air data service. It may take about a minute after an idle period.</p>}
-          {(error || unavailable) && <div className="notice" role="status">
-            <p>{error || 'Live air readings are temporarily unavailable.'} {env.air ? 'Showing the last data from this visit.' : 'General guidance is still available.'}</p>
-            <button className="button mt-2" disabled={refreshing} onClick={reloadData}>Retry live readings</button>
-          </div>}
+          <div className={readingStatus ? 'notice' : 'sr-only'}>
+            <p role="status">{readingStatus}</p>
+            {readingIssue && <button className="button mt-2" disabled={refreshing} onClick={reloadData}>Retry live readings</button>}
+          </div>
           {page === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
           <Suspense fallback={<p className="empty" role="status">Opening this section…</p>}>
           {page === 'planner' && <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />}

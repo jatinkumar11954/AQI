@@ -13,7 +13,7 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     await page.getByRole('button', { name: /^Search$/ }).click();
     await expect(page.locator('dialog [aria-live="polite"]')).toContainText('No matches');
     await page.getByLabel('City or neighbourhood').fill('110001');
-    await expect(page.locator('dialog [aria-live="polite"]')).toContainText('No matches');
+    await expect(page.getByRole('dialog').getByRole('status')).toBeEmpty();
     await page.getByLabel('City or neighbourhood').fill('Pune');
     await page.getByRole('button', { name: /^Search$/ }).click();
     await page.getByRole('button', { name: 'Pune Maharashtra' }).click();

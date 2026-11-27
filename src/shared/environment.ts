@@ -1,19 +1,16 @@
 import { z } from 'zod';
-import { EMPTY_ENV, HOUR, TIMEZONE, citySchema, type AirPoint, type City, type Environment, type IndiaStation, type Station, type Weather } from './model.js';
+import { EMPTY_ENV, HOUR, TIMEZONE, airTimestamp, citySchema, concentration, modeledAqi, type AirPoint, type City, type Environment, type IndiaStation, type Station, type Weather } from './model.js';
 import { createCache, createLimiter, createTransport, UpstreamError, url, type Fetcher } from './upstream.js';
 
-const scalar = z.number().min(0);
-const nonnegative = (value: unknown) => scalar.safeParse(value).data ?? null;
+const nonnegative = (value: unknown) => concentration.safeParse(value).data ?? null;
 const number = (value: unknown) => z.number().safeParse(value).data ?? null;
-const unix = z.number().int().min(1_500_000_000).max(4_100_000_000);
-const timestamp = (value: unknown) => unix.safeParse(value).data;
+const timestamp = (value: unknown) => airTimestamp.safeParse(value).data;
 const row = z.record(z.string(), z.unknown());
 const body = z.object({ current: row.optional(), hourly: row.optional() });
 const list = z.array(z.unknown()).max(96).optional();
-const apiAQI = (value: unknown) => z.number().int().min(0).max(5000).safeParse(value).data ?? null;
 
 function airPoint(time: number, aqi: unknown, pm25: unknown, pm10: unknown): AirPoint {
-  return { time, aqi: apiAQI(aqi), pm25: nonnegative(pm25), pm10: nonnegative(pm10) };
+  return { time, aqi: modeledAqi.safeParse(aqi).data ?? null, pm25: nonnegative(pm25), pm10: nonnegative(pm10) };
 }
 export function parseAir(input: unknown, now: number) {
   const { current, hourly } = body.parse(input);

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { composeAnswer, inferTopic, TOPICS, type Answer } from '../shared/assistant.js';
+import { composeAnswer, inferTopic, TOPICS } from '../shared/assistant.js';
 import { findWindows, freshIndiaStation, isSensitive, modelNow, nearbyParticleCaution } from '../shared/planner.js';
-import { HOUR, type Environment, type Profile } from '../shared/model.js';
+import { HOUR, type Answer, type Environment, type Profile } from '../shared/model.js';
 import { type Keys } from './config.js';
 import { createCache, createLimiter, createTransport, UpstreamError, type Fetcher } from '../shared/upstream.js';
 

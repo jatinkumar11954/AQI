@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { CalendarDays, CircleHelp, House, Send, ShieldCheck, Sparkles } from 'lucide-react';
-import { SOURCES, type City, type Environment, type Profile } from '../shared/model';
-import { type Answer } from '../shared/assistant';
+import { SOURCES, type Answer, type City, type Environment, type Profile } from '../shared/model';
 import { askSaansAI, assistantBudgetMs } from './data';
 import { CardTitle, SourceLink } from './ui';
 

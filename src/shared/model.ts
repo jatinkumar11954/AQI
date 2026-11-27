@@ -9,6 +9,8 @@ export const latitude = z.number().min(6).max(38);
 export const longitude = z.number().min(67).max(98);
 export const pointSchema = z.object({ lat: latitude, lon: longitude });
 export const citySchema = pointSchema.extend({ name: z.string().trim().min(1).max(100), state: z.string().max(100) });
+export const citySearchSchema = z.string().trim().min(2).max(64).regex(/^[\p{L}\p{M}\p{N} .,'’()-]+$/u);
+export const searchResponseSchema = z.object({ places: z.array(citySchema).max(20) });
 export type City = z.infer<typeof citySchema>;
 export const CITIES: City[] = [
   { name: 'New Delhi', state: 'Delhi', lat: 28.61, lon: 77.21 },
@@ -41,25 +43,41 @@ export const PROFILES: { name: string; description: string; city: City; profile:
     profile: { ...DEFAULT_PROFILE, work: 'outdoor', commute: 'two-wheeler', workStart: 7, workEnd: 15 } },
 ];
 
-export type AirPoint = { time: number; aqi: number | null; pm25: number | null; pm10: number | null };
-export type Weather = { time: number; temperature: number | null; humidity: number | null; wind: number | null };
-export type Reading = { value: number; time: number };
-export type Station = {
-  name: string; owner: string; provider: string; distance: number;
-} & (
-  | { kind: 'openaq'; id: number; pm25: Reading | null; pm10: Reading | null }
-  | { kind: 'cpcb-relay'; aqi: number | null; time: number; pm25Index: number | null; pm10Index: number | null }
-);
-export type FeedStatus = 'fresh' | 'stale' | 'unavailable';
-export type IndiaStation = Extract<Station, { kind: 'cpcb-relay' }>;
-export type Environment = {
-  air: { current: AirPoint | null; hourly: AirPoint[]; fetchedAt: number } | null;
-  airStatus: FeedStatus;
-  weather: Weather | null;
-  station: Station | null;
-  stationStatus: FeedStatus | 'unconfigured' | 'no-station';
-  india?: { station: IndiaStation; status: 'fresh' | 'stale' };
-};
+export const airTimestamp = z.number().int().min(1_500_000_000).max(4_100_000_000);
+export const concentration = z.number().nonnegative();
+export const modeledAqi = z.number().int().min(0).max(5000);
+const airPointSchema = z.object({
+  time: airTimestamp, aqi: modeledAqi.nullable(), pm25: concentration.nullable(), pm10: concentration.nullable(),
+});
+export type AirPoint = z.infer<typeof airPointSchema>;
+const weatherSchema = z.object({
+  time: airTimestamp, temperature: z.number().nullable(), humidity: concentration.nullable(), wind: concentration.nullable(),
+});
+export type Weather = z.infer<typeof weatherSchema>;
+const readingSchema = z.object({ value: concentration, time: airTimestamp });
+export type Reading = z.infer<typeof readingSchema>;
+const stationFields = z.object({
+  name: z.string(), owner: z.string(), provider: z.string(), distance: z.number().min(0).max(25),
+});
+const indiaIndex = z.number().min(0).max(500).nullable();
+const indiaStationSchema = stationFields.extend({
+  kind: z.literal('cpcb-relay'), time: airTimestamp, aqi: indiaIndex, pm25Index: indiaIndex, pm10Index: indiaIndex,
+});
+export type IndiaStation = z.infer<typeof indiaStationSchema>;
+const stationSchema = z.discriminatedUnion('kind', [indiaStationSchema, stationFields.extend({
+  kind: z.literal('openaq'), id: z.number().int().positive(), pm25: readingSchema.nullable(), pm10: readingSchema.nullable(),
+})]);
+export type Station = z.infer<typeof stationSchema>;
+const feedStatus = z.enum(['fresh', 'stale', 'unavailable']);
+export const environmentSchema = z.object({
+  air: z.object({ current: airPointSchema.nullable(), hourly: z.array(airPointSchema).max(96), fetchedAt: airTimestamp }).nullable(),
+  airStatus: feedStatus,
+  weather: weatherSchema.nullable(),
+  station: stationSchema.nullable(),
+  stationStatus: feedStatus.or(z.enum(['unconfigured', 'no-station'])),
+  india: z.object({ station: indiaStationSchema, status: z.enum(['fresh', 'stale']) }).optional(),
+});
+export type Environment = z.infer<typeof environmentSchema>;
 export const EMPTY_ENV: Environment = { air: null, airStatus: 'unavailable', weather: null, station: null, stationStatus: 'unconfigured' };
 
 export const SOURCES = {
@@ -76,3 +94,10 @@ export const SOURCES = {
   fuel: { title: 'UK DESNZ · DUKES 2026 Annex A', url: 'https://www.gov.uk/government/statistics/digest-of-uk-energy-statistics-dukes-2026' },
 } as const;
 export type SourceId = keyof typeof SOURCES;
+export const answerSchema = z.object({
+  mode: z.enum(['gemini', 'rules']), text: z.string(), context: z.string(),
+  sources: z.enum(Object.keys(SOURCES) as SourceId[]).array(),
+  status: z.enum(['unconfigured', 'quota', 'unavailable', 'privacy']).optional(),
+  followUp: z.string().optional(),
+});
+export type Answer = z.infer<typeof answerSchema>;

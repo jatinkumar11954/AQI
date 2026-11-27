@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { z } from 'zod';
-import { pointSchema, profileSchema } from '../shared/model.js';
+import { citySearchSchema, pointSchema, profileSchema } from '../shared/model.js';
 import { createEnvironment } from '../shared/environment.js';
 import { httpsOrigin } from '../shared/deployment.js';
 import type { Keys } from './config.js';
@@ -14,7 +14,6 @@ const questionSchema = z.object({
   location: pointSchema, profile: profileSchema, question: z.string().trim().min(2).max(350),
   language: z.enum(['en', 'hi']).default('en'),
 }).strict();
-const searchSchema = z.string().trim().min(2).max(64).regex(/^[\p{L}\p{M}\p{N} .,'’()-]+$/u);
 const decimal = z.union([z.number(), z.string().regex(/^-?\d{1,3}(?:\.\d{1,10})?$/).transform(Number)]);
 const querySchema = z.object({ lat: decimal, lon: decimal }).pipe(pointSchema);
 const issue = (code: string, message: string) => ({ error: { code, message } });
@@ -64,7 +63,7 @@ export function createApp({
     return context.json({ status: 'ready' });
   });
   app.get('/api/places', async context => {
-    const query = searchSchema.safeParse(context.req.query('q'));
+    const query = citySearchSchema.safeParse(context.req.query('q'));
     if (!query.success) return context.json(issue('INVALID_SEARCH', 'Enter a city or neighbourhood with 2–64 characters.'), 400);
     return context.json({ places: await environment.search(query.data) });
   });

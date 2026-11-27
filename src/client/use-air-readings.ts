@@ -8,7 +8,7 @@ const stamp = () => Math.floor(Date.now() / 1000);
 function markStale(data: Environment): Environment {
   return {
     ...data,
-    airStatus: 'stale',
+    airStatus: data.air ? 'stale' : data.airStatus,
     stationStatus: data.station ? 'stale' : data.stationStatus,
     india: data.india ? { ...data.india, status: 'stale' } : undefined,
     weather: null,
@@ -45,7 +45,17 @@ export function useAirReadings(city: City) {
     async function load() {
       try {
         const data = await readEnvironment({ lat, lon }, AbortSignal.any([request.signal, timeout]));
-        if (!request.signal.aborted) setReadings({ location, data, error: '' });
+        if (request.signal.aborted) return;
+        if (data.air || data.station || data.india || data.weather) {
+          setReadings({ location, data, error: '' });
+        } else {
+          setReadings(previous => {
+            const earlier = previous.location === location ? previous.data : null;
+            return earlier && (earlier.air || earlier.station || earlier.india)
+              ? { location, data: markStale(earlier), error: 'Live air readings are temporarily unavailable.' }
+              : { location, data, error: '' };
+          });
+        }
       } catch (cause) {
         if (request.signal.aborted) return;
         const error = timeout.aborted ? 'The data service did not respond in time.'

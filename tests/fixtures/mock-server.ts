@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
-import { secureHeaders } from 'hono/secure-headers';
+import vercel from '../../vercel.json' with { type: 'json' };
 import { createApp } from '../../src/server/app';
 import { HOUR } from '../../src/shared/model';
 
@@ -40,9 +40,13 @@ const mockFetcher: typeof fetch = async (input) => {
 
 const api = createApp({ fetcher: mockFetcher, clock: now });
 const app = new Hono();
-app.use('*', secureHeaders({ crossOriginEmbedderPolicy: false }));
+const staticHeaders = vercel.headers.find(rule => rule.source === '/((?!api/).*)')?.headers ?? [];
+const assetHeaders = vercel.headers.find(rule => rule.source === '/assets/(.*)')?.headers ?? [];
 app.use('*', async (context, next) => {
-  context.header('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+  for (const { key, value } of staticHeaders) context.header(key, value);
+  if (context.req.path.startsWith('/assets/')) {
+    for (const { key, value } of assetHeaders) context.header(key, value);
+  }
   await next();
 });
 app.use('*', serveStatic({ root: './dist/client' }));
