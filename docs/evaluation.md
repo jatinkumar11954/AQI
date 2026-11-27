@@ -41,18 +41,18 @@ Each row is a single lab run on the live Vercel deployment. Cold `/api/ready` TT
 
 ## Challenge 06 quality pass
 
-28 November 2026 IST · Local verification against baseline `73235be`.
+28 November 2026 IST · Final candidate verified against the first quality pass (`6d376dd`). The last confirmed Hack2skill result is **96.62/100** from Attempt 1. The category scores are historical. The candidate evidence comes from local verification.
 
-| Check | Result |
-|---|---|
-| Maintainability | Split the shared secondary-screen module into four independently loaded views. Moved air-reading state and cancellation into a dedicated hook. Simulator input bounds and numeric validation share one definition. TypeScript rejects unused locals and parameters. |
-| Build | `npm run check`, `npm run build` and `npm run build:pages` passed. The initial client JS was 109.90 kB gzip versus 109.79 kB at baseline. Each secondary view now loads its own code on demand. |
-| Unit and API | 60 tests passed. V8 coverage of modules configured in `vitest.config.ts` reached 99.55% lines, 95.05% statements, 89.62% branches and 94.49% functions. The CI gate checks all four measures. |
-| Browser regression | 26 runs passed in desktop and mobile Chromium. Controlled fixtures cover unavailable feeds, stale snapshots and retry, a late response after changing cities, simulator validation, and canceling a pending question before asking another. |
-| Accessibility | Axe reported zero violations across the five views, the location dialog, and the open forecast table at 320 CSS pixels with its WCAG 2.0, 2.1 and 2.2 A/AA rule tags. Keyboard checks covered focus, dialog dismissal and the scrollable table. Simulator fields expose their error text, and checklist and assistant status updates have separate announcements. |
-| Dependency audit | `npm audit --json` reported zero known advisories for the locked dependencies at test time. |
+| Hack2skill category | Attempt 1 | Verified candidate evidence |
+|---|---:|---|
+| Code Quality | 88 | TypeScript strict checking passes. The client validates API responses and stored preferences. City search discards superseded requests, and OpenAQ selection retains sub-second precision through filtering and sorting before serializing whole Unix seconds. |
+| Security | 99 | `npm audit --json` reported zero known advisories for the lockfile. API tests cover origin restrictions, request size, validation, rate limits, and server-side provider credentials. |
+| Efficiency | 100 | The production entry JS is 111.54 kB gzip, up from 109.90 kB in `6d376dd`. Secondary views load on demand. Fixture tests verify coalescing, bounded caches, provider limits, retries, and recovery from stale data. |
+| Testing | 98 | 87 unit and API tests passed. V8 coverage across the eight configured modules reached 99.78% lines, 99.28% statements, 99.61% branches and 96.52% functions. All 34 desktop and mobile Chromium runs passed from a checkout without a previous client build. |
+| Accessibility | 99 | Axe reported zero violations across the five views, location dialog, and expanded forecast table at 320 CSS pixels using WCAG 2.0, 2.1 and 2.2 A/AA tags. Tests cover keyboard focus, dialog dismissal and the scrollable table. Secondary control borders have at least 3.56:1 contrast on the measured surfaces. |
+| Problem Statement Alignment | 100 | The browser journeys verify city-specific household planning, indoor guidance, sustainable alternatives, explainable travel and exposure estimates, and the cited assistant. See the [requirements matrix](requirements.md). |
 
-These checks describe the local code and browser coverage. Assistive-technology usability and a revised Hack2skill score require separate evaluation.
+TypeScript, the production and Pages builds, and the dependency audit ran with the locked dependencies. The local browser suite starts by building the client and serving controlled provider fixtures. Assistive-technology usability and a revised Hack2skill score require separate evaluation.
 
 ## Remaining limitations
 

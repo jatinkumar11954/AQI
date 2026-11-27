@@ -86,7 +86,7 @@ export function createEnvironment(fetcher: Fetcher, clock: () => number) {
         .map(record => ({ value: record.value, time: Date.parse(record.datetime.utc) / 1000 }))
         .filter(record => record.time <= now + 300 && record.time >= now - 48 * HOUR)
         .sort((a, b) => b.time - a.time)[0];
-      return result ?? null;
+      return result ? { ...result, time: Math.floor(result.time) } : null;
     };
     const pm25 = find('pm25');
     const pm10 = find('pm10');

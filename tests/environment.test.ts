@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { createEnvironment, parseAir } from '../src/shared/environment';
-import { HOUR } from '../src/shared/model';
+import { environmentSchema, HOUR } from '../src/shared/model';
 import { NOW, providerAir, relayPayload } from './fixtures';
 
 const location = { lat: 28.61, lon: 77.21 };
@@ -145,4 +145,30 @@ it('enforces per-provider limits for uncached cities and still serves cached rea
   expect(calls.filter(host => host === 'api.dharun.dev')).toHaveLength(36);
   expect(calls.filter(host => host === 'air-quality-api.open-meteo.com')).toHaveLength(45);
   expect(calls.filter(host => host === 'api.open-meteo.com')).toHaveLength(45);
+});
+
+it('filters and ranks sub-second OpenAQ observations before converting to whole seconds', async () => {
+  const readings = [
+    { offsetMs: -900, value: 25, sensorsId: 1 },
+    { offsetMs: -100, value: 42, sensorsId: 2 },
+    { offsetMs: 300_500, value: 75, sensorsId: 3 },
+  ];
+  const fetcher = vi.fn(async (target: URL) => {
+    if (target.hostname !== 'api.openaq.org') return feed(target);
+    if (target.pathname.endsWith('/latest')) {
+      return Response.json({ results: readings.map(({ offsetMs, value, sensorsId }) => ({
+        sensorsId, value, datetime: { utc: new Date(NOW * 1000 + offsetMs).toISOString() },
+      })) });
+    }
+    return Response.json({
+      results: [{
+        id: 1, name: 'Sub-second monitor', distance: 250, provider: { name: 'OpenAQ' },
+        sensors: readings.map(({ sensorsId: id }) => ({ id, parameter: { name: 'pm25', units: 'µg/m³' } })),
+      }],
+    });
+  });
+  const result = await createEnvironment(fetcher, () => NOW).get(location, 'fixture-key');
+  expect(environmentSchema.parse(result).station).toMatchObject({
+    kind: 'openaq', id: 1, pm25: { value: 42, time: NOW - 1 },
+  });
 });
