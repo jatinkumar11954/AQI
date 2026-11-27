@@ -11,7 +11,7 @@ export default defineConfig({
         'src/client/data.ts',
       ],
       reporter: ['text', 'json-summary'],
-      thresholds: { lines: 90, statements: 90 },
+      thresholds: { lines: 98, statements: 94, branches: 89, functions: 93 },
     },
   },
 });

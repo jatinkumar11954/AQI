@@ -45,7 +45,7 @@ test('applies a household preset, persists settings and checks off a daily actio
   await expect(page.locator('.action-list')).not.toContainText('school advisories');
   const checkbox = page.getByRole('checkbox', { name: 'Plan for older family members completed' });
   await checkbox.check();
-  await expect(page.getByText(/1 of 4 complete/)).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: '1 of 4 complete' })).toBeVisible();
   await page.reload();
   await expect(checkbox).toBeChecked();
   await nav(page, 'Indoor air').click();
@@ -63,7 +63,9 @@ test('changes both travel scenarios and computes the forecast exposure proxy', a
   await expect(page.getByText('12.5 kg', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Try transit' }).click();
   await expect(page.getByLabel('Extra fare or trip cost (₹/day)')).toHaveValue('50');
-  await page.getByLabel('Petrol vehicle efficiency (km/L)').fill('0');
+  const efficiency = page.getByLabel('Petrol vehicle efficiency (km/L)');
+  await efficiency.fill('0');
+  await expect(efficiency).toHaveAccessibleDescription('Enter a number from 3 to 100.');
   await expect(page.getByText(/Complete each input/)).toBeVisible();
   await page.getByLabel('Current forecast hour').selectOption({ index: 1 });
   await page.getByLabel('Alternative forecast hour').selectOption({ index: 2 });
@@ -142,8 +144,15 @@ test('passes automated accessibility checks on each page and the location dialog
   await fixture(page);
   await page.goto('/');
   await gotForecast(page);
-  for (const label of ['Today', 'Daily planner', 'Indoor air', 'Impact simulator', 'Ask SaansAI']) {
+  for (const [label, section] of [
+    ['Today', 'Hourly outlook'],
+    ['Daily planner', 'Household settings'],
+    ['Indoor air', 'Indoor action by budget'],
+    ['Impact simulator', 'Petrol travel comparison'],
+    ['Ask SaansAI', 'Your air assistant'],
+  ]) {
     await nav(page, label).click();
+    await expect(page.getByRole('heading', { name: section, exact: true })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(accessibilityTags).analyze();
     expect(results.violations.map(item => [item.id, item.nodes.map(node => node.target)]), label).toEqual([]);
   }
@@ -174,4 +183,130 @@ test('communicates a cold start and recovers without replacing household choices
   await expect(page.getByText(/Still connecting to the air data service/)).toHaveCount(0);
   await nav(page, 'Daily planner').click();
   await expect(page.getByLabel('Household budget')).toHaveValue('low');
+});
+
+test('retains the current city’s earlier model through a failed refresh and recovers on retry', async ({ page }) => {
+  let fail = false;
+  let requestCount = 0;
+  await page.route('**/api/environment?*', async route => {
+    requestCount++;
+    if (fail) {
+      await route.fulfill({ status: 503, json: { error: { message: 'Air data is temporarily unavailable.' } } });
+    } else {
+      await route.fulfill({ json: modeled(currentTime()) });
+    }
+  });
+
+  await page.goto('/');
+  await gotForecast(page);
+  await expect(page.locator('.readout strong')).toHaveText('82');
+  fail = true;
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Showing the last data from this visit' })).toBeVisible();
+  await expect(page.getByText('Earlier model', { exact: true })).toBeVisible();
+  await expect(page.getByText('Forecast may be stale. Activity planning is paused.')).toBeVisible();
+  await expect(page.locator('.readout strong')).toHaveText('82');
+  expect(requestCount).toBe(3);
+
+  fail = false;
+  await page.getByRole('button', { name: 'Retry live readings' }).click();
+  await gotForecast(page);
+  await expect(page.getByText('Showing the last data from this visit.', { exact: false })).toHaveCount(0);
+});
+
+test('keeps earlier readings out of a newly selected city even when the previous request finishes late', async ({ page }) => {
+  let finishRefresh!: () => void;
+  const delayedRefresh = new Promise<void>(resolve => { finishRefresh = resolve; });
+  let refreshStarted = false;
+  let originalRequests = 0;
+  const [original, next] = CITIES;
+  await page.route('**/api/environment?*', async route => {
+    const lat = new URL(route.request().url()).searchParams.get('lat');
+    if (lat === String(next.lat)) {
+      await route.fulfill({ json: EMPTY_ENV });
+      return;
+    }
+    if (++originalRequests > 1) {
+      refreshStarted = true;
+      await delayedRefresh;
+    }
+    await route.fulfill({ json: modeled(currentTime()) });
+  });
+
+  try {
+    await page.goto('/');
+    await gotForecast(page);
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect.poll(() => refreshStarted).toBe(true);
+    await page.getByRole('button', { name: original.name + ', India' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: new RegExp(next.name) }).click();
+    await expect(page.getByRole('button', { name: next.name + ', India' })).toBeVisible();
+    await expect(page.getByText('Feed unavailable')).toBeVisible();
+
+    finishRefresh();
+    await page.unrouteAll({ behavior: 'wait' });
+    await expect(page.getByText('Feed unavailable')).toBeVisible();
+    await expect(page.getByText('Current model', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Earlier model', { exact: true })).toHaveCount(0);
+  } finally {
+    finishRefresh();
+  }
+});
+
+test('makes the expanded forecast table keyboard-scrollable at 320 CSS pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await fixture(page);
+  await page.goto('/');
+  await gotForecast(page);
+  const disclosure = page.getByText('View forecast as a table', { exact: true });
+  await disclosure.press('Enter');
+  const region = page.getByRole('region', { name: 'Hourly forecast table' });
+  await expect(region.getByRole('table', { name: 'Hourly forecast in IST' })).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(region).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => region.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(321);
+
+  const results = await new AxeBuilder({ page }).withTags(accessibilityTags).analyze();
+  expect(results.violations.map(item => [item.id, item.nodes.map(node => node.target)])).toEqual([]);
+});
+
+test('restores keyboard focus on cancel and accepts a new assistant question', async ({ page }) => {
+  await fixture(page);
+  const questions: string[] = [];
+  let finishFirst!: () => void;
+  const pending = new Promise<void>(resolve => { finishFirst = resolve; });
+  await page.route('**/api/ask', async route => {
+    const { question } = route.request().postDataJSON() as { question: string };
+    questions.push(question);
+    if (questions.length === 1) {
+      await pending;
+      await route.abort();
+    } else {
+      await route.fulfill({ status: 429, json: { error: { message: 'Try again later.' } } });
+    }
+  });
+
+  try {
+    await page.goto('/#assistant');
+    const input = page.getByRole('textbox', { name: 'Your question' });
+    await page.getByRole('button', { name: 'Should I open the windows?' }).click();
+    await expect.poll(() => questions.length).toBe(1);
+    await expect(input).toBeFocused();
+    await expect(page.getByRole('status').filter({ hasText: 'Checking your context' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel question' }).press('Enter');
+    await expect(input).toHaveValue('Should I open the windows?');
+    await expect(input).toBeFocused();
+
+    await input.fill('How should I adjust my commute?');
+    await input.press('Enter');
+    const log = page.getByRole('log', { name: 'Assistant responses' });
+    await expect(log).toContainText('Gemini quota reached · Rules answer');
+    await expect(log).toContainText('How should I adjust my commute?');
+    await expect(log).not.toContainText('Should I open the windows?');
+    expect(questions).toEqual(['Should I open the windows?', 'How should I adjust my commute?']);
+  } finally {
+    finishFirst();
+  }
 });

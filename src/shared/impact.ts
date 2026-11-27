@@ -3,18 +3,43 @@ import { HOUR, type Environment } from './model.js';
 import { freshAir } from './planner.js';
 
 export const PETROL_FACTOR = 2.34;
-const bounded = (min: number, max: number) => z.number().min(min).max(max);
-export const scenarioSchema = z.object({
-  currentKm: bounded(0, 500), alternativeKm: bounded(0, 500), days: bounded(1, 31).int(),
-  efficiency: bounded(3, 100), fuelPrice: bounded(0, 300), alternativeCost: bounded(0, 5000),
-  households: bounded(1, 10000).int(), currentMinutes: bounded(0, 60), alternativeMinutes: bounded(0, 60),
+export const scenarioBounds = {
+  currentKm: { min: 0, max: 500, step: 0.1 },
+  alternativeKm: { min: 0, max: 500, step: 0.1 },
+  days: { min: 1, max: 31, step: 1 },
+  efficiency: { min: 3, max: 100, step: 0.1 },
+  fuelPrice: { min: 0, max: 300, step: 0.1 },
+  alternativeCost: { min: 0, max: 5000, step: 0.1 },
+  households: { min: 1, max: 10_000, step: 1 },
+  currentMinutes: { min: 0, max: 60, step: 1 },
+  alternativeMinutes: { min: 0, max: 60, step: 1 },
+} as const;
+
+function fieldSchema(key: keyof typeof scenarioBounds) {
+  const { min, max, step } = scenarioBounds[key];
+  const range = z.number().min(min).max(max);
+  return step === 1 ? range.int() : range;
+}
+
+export const travelScenarioSchema = z.object({
+  currentKm: fieldSchema('currentKm'),
+  alternativeKm: fieldSchema('alternativeKm'),
+  days: fieldSchema('days'),
+  efficiency: fieldSchema('efficiency'),
+  fuelPrice: fieldSchema('fuelPrice'),
+  alternativeCost: fieldSchema('alternativeCost'),
+  households: fieldSchema('households'),
+});
+export const scenarioSchema = travelScenarioSchema.extend({
+  currentMinutes: fieldSchema('currentMinutes'),
+  alternativeMinutes: fieldSchema('alternativeMinutes'),
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
 export const DEFAULT_SCENARIO: Scenario = {
   currentKm: 18, alternativeKm: 8, days: 8, efficiency: 15,
   fuelPrice: 100, alternativeCost: 0, households: 25, currentMinutes: 25, alternativeMinutes: 15,
 };
-export function calculateImpact(input: Scenario) {
+export function calculateImpact(input: z.infer<typeof travelScenarioSchema>) {
   const currentFuel = input.currentKm * input.days / input.efficiency;
   const alternativeFuel = input.alternativeKm * input.days / input.efficiency;
   const litres = currentFuel - alternativeFuel;

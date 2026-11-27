@@ -39,6 +39,21 @@ The application is deployed as a single-origin Vercel build in the Mumbai (`bom1
 
 Each row is a single lab run on the live Vercel deployment. Cold `/api/ready` TTFB measured ~0.36–0.42s (`bom1`), 5 concurrent `/api/environment` requests completed in 882–1,555 ms (HTTP 200), and live 6-city `smoke.mjs` returned fresh CAMS, OpenAQ, CPCB-relay, and Gemini (`mode: gemini`) responses.
 
+## Challenge 06 quality pass
+
+28 November 2026 IST · Local verification against baseline `73235be`.
+
+| Check | Result |
+|---|---|
+| Maintainability | Split the shared secondary-screen module into four independently loaded views. Moved air-reading state and cancellation into a dedicated hook. Simulator input bounds and numeric validation share one definition. TypeScript rejects unused locals and parameters. |
+| Build | `npm run check`, `npm run build` and `npm run build:pages` passed. The initial client JS was 109.90 kB gzip versus 109.79 kB at baseline. Each secondary view now loads its own code on demand. |
+| Unit and API | 60 tests passed. V8 coverage of modules configured in `vitest.config.ts` reached 99.55% lines, 95.05% statements, 89.62% branches and 94.49% functions. The CI gate checks all four measures. |
+| Browser regression | 26 runs passed in desktop and mobile Chromium. Controlled fixtures cover unavailable feeds, stale snapshots and retry, a late response after changing cities, simulator validation, and canceling a pending question before asking another. |
+| Accessibility | Axe reported zero violations across the five views, the location dialog, and the open forecast table at 320 CSS pixels with its WCAG 2.0, 2.1 and 2.2 A/AA rule tags. Keyboard checks covered focus, dialog dismissal and the scrollable table. Simulator fields expose their error text, and checklist and assistant status updates have separate announcements. |
+| Dependency audit | `npm audit --json` reported zero known advisories for the locked dependencies at test time. |
+
+These checks describe the local code and browser coverage. Assistive-technology usability and a revised Hack2skill score require separate evaluation.
+
 ## Remaining limitations
 
 - Reference monitors and the regional CAMS grid have distinct location and coverage limits. The CPCB relay can lag or omit sites. The app links directly to the official India National AQI and withholds time windows when the required data is stale or missing. It uses no indoor measurements or street-level exposure model.

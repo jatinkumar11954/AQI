@@ -7,7 +7,8 @@ const apiOrigin = pages ? httpsOrigin(import.meta.env.VITE_API_BASE_URL) : undef
 const publicData = pages && !apiOrigin;
 export const environmentBudgetMs = apiOrigin ? 75_000 : 12_000;
 export const assistantBudgetMs = apiOrigin ? 75_000 : 16_000;
-const locationParams = (city: City) => new URLSearchParams({ lat: String(city.lat), lon: String(city.lon) });
+type Coordinates = Pick<City, 'lat' | 'lon'>;
+const locationParams = (city: Coordinates) => new URLSearchParams({ lat: String(city.lat), lon: String(city.lon) });
 let browserFeeds: Promise<ReturnType<typeof import('../shared/environment').createEnvironment>> | undefined;
 
 function publicFeeds() {
@@ -30,7 +31,7 @@ async function request<T>(path: string, signal: AbortSignal, init: RequestInit =
 const transient = (cause: unknown) => cause instanceof TypeError || (cause instanceof HttpError
   && (cause.status === 502 || cause.status === 503 || cause.status === 504));
 
-export async function readEnvironment(city: City, signal: AbortSignal): Promise<Environment> {
+export async function readEnvironment(city: Coordinates, signal: AbortSignal): Promise<Environment> {
   if (publicData) return (await publicFeeds()).get(city);
   const path = '/api/environment?' + locationParams(city);
   try {

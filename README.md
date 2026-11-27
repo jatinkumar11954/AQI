@@ -2,6 +2,10 @@
 
 SaansAI helps Indian households decide what to do on polluted days. Start with [today’s action plan](https://aqi-tau.vercel.app/), select a city and try a sample household. No account or API key is required to use the public application.
 
+## PromptWars Challenge 06 · Urban Air Quality Assistant
+
+The chosen vertical is **Urban Air Quality Assistant**. The planner uses the selected Indian city, household sensitivity, schedule and commute to build a daily checklist and find lower-exposure windows. The app pauses forecast-based suggestions when the modeling data is stale or missing or a fresh India AQI report raises a caution. Gemini selects reviewed topics for contextual questions, and the app renders the cited guidance. The same guidance remains available through rules mode when Gemini is unavailable.
+
 - **Today and Daily planner** combine modeled US AQI and weather with separately labeled station reports. Set work hours, commute, family needs, activity and budget to get cautious time windows and a daily checklist.
 - **Indoor air** explains source control, ventilation, filtration and low-emission routines across three budget tiers.
 - **Impact simulator** compares petrol use, fuel and fare spending, hypothetical household participation and outdoor PM2.5 concentration-time using documented formulas.
@@ -25,6 +29,14 @@ flowchart LR
 ```
 
 The server validates requests with Zod, caps JSON bodies at 4 KiB, and sets a restrictive content policy. Upstream responses are size-limited and requests use bounded timeouts. API keys stay in Vercel Environment Variables (encrypted secrets) or the ignored local `.env` file. Household settings and the checklist are stored in the browser. Read [the API contract](docs/api.md) and [data and privacy methodology](docs/methodology.md).
+
+Each secondary view loads independently. `src/client/use-air-readings.ts` owns the request lifecycle and isolates readings by location. The planner and simulator rules live in `src/shared`, and the simulator uses the same field limits for validation and browser input guidance.
+
+### Assumptions
+
+- CAMS supplies regional modeled US AQI. Nearby OpenAQ measurements and CPCB India AQI reports describe separate station observations with their own timestamps and units.
+- Household recommendations use the user’s selections and available feeds. The app has no indoor sensor or street-level exposure model.
+- The impact simulator compares petrol tailpipe CO₂ and travel spending under editable assumptions. Its outdoor PM2.5 estimate uses one hourly concentration and time outdoors. See the [methodology and limitations](docs/methodology.md).
 
 ## Getting Started
 
@@ -57,11 +69,13 @@ See [.env.example](.env.example):
 ```bash
 npm run check      # TypeScript strict typecheck
 npm run build      # Vite client + Node server (dist/server.mjs) + Worker bundle (dist/worker.mjs)
-npm run test:coverage # Unit and API tests with a 90% critical statements and lines gate
+npm run test:coverage # Unit and API tests with coverage thresholds for critical modules
 npx playwright install chromium
-npm run test:e2e   # Desktop/mobile Chromium journeys and axe WCAG 2.2 A/AA checks
+npm run test:e2e   # Desktop/mobile Chromium journeys and axe A/AA checks
 node scripts/smoke.mjs  # Live-provider smoke against a running local production build
 ```
+
+Local browser tests use the built client and a Hono server with controlled provider data. They cover city changes during requests, stale readings and retry, household persistence, simulator validation and assistant cancellation. Accessibility automation covers the five views, the location dialog and the expanded forecast table. See [verified results and test scope](docs/evaluation.md#challenge-06-quality-pass).
 
 ## Deployment
 

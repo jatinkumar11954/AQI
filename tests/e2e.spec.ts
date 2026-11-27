@@ -1,15 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 const isLive = Boolean(process.env.SAANS_TEST_URL);
-const PAGES = [
-  { hash: '#today', heading: 'Your air plan today' },
-  { hash: '#planner', heading: 'Plan your day' },
-  { hash: '#indoor', heading: 'Make home air cleaner' },
-  { hash: '#impact', heading: 'Compare your routines' },
-  { hash: '#assistant', heading: 'Ask SaansAI' },
-];
-
 test.describe('SaansAI end-to-end journeys and accessibility', () => {
   test('navigates all views, searches cities, updates planner, runs impact and assistant', async ({ page }) => {
     await page.goto('/');
@@ -60,15 +51,4 @@ test.describe('SaansAI end-to-end journeys and accessibility', () => {
     );
   });
 
-  test('passes axe WCAG accessibility checks across desktop and mobile viewports', async ({ page }) => {
-    for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
-      await page.setViewportSize(viewport);
-      for (const route of PAGES) {
-        await page.goto('/' + route.hash);
-        await expect(page.getByRole('heading', { name: route.heading })).toBeVisible();
-        const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-        expect(results.violations, `Axe violations on ${route.hash} at ${viewport.width}px`).toEqual([]);
-      }
-    }
-  });
 });

@@ -78,7 +78,7 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
   const detail = (point: AirPoint) => `${format(point[metric], 1)}${point[metric] == null ? '' : units}`;
   return <section className="card forecast-card">
     <CardTitle icon={<Activity size={20} />} title="Hourly outlook" sub="CAMS forecast · Local time (IST)" right={
-      <div className="segmented" aria-label="Forecast range">
+      <div className="segmented" role="group" aria-label="Forecast range">
         {[24, 48].map(hours => <button key={hours} aria-pressed={duration === hours} onClick={() => setDuration(hours)}>{hours}h</button>)}
       </div>} />
     {(env.airStatus === 'stale' || (env.air && now - env.air.fetchedAt > HOUR)) && <p className="notice">Forecast may be stale. Activity planning is paused.</p>}
@@ -115,7 +115,7 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
         {hours.map(point => <option key={point.time} value={point.time}>{formatDate(point.time)} · {formatTime(point.time)}</option>)}</select></label>
         {selected && <strong>{detail(selected)}</strong>}</div>
       <details className="details"><summary>View forecast as a table</summary>
-        <div className="table-wrap"><table><caption className="sr-only">Hourly forecast in IST</caption><thead><tr><th scope="col">Time</th><th scope="col">US AQI</th><th scope="col">PM2.5 (µg/m³)</th><th scope="col">PM10 (µg/m³)</th></tr></thead>
+        <div className="table-wrap" role="region" aria-label="Hourly forecast table" tabIndex={0}><table><caption className="sr-only">Hourly forecast in IST</caption><thead><tr><th scope="col">Time</th><th scope="col">US AQI</th><th scope="col">PM2.5 (µg/m³)</th><th scope="col">PM10 (µg/m³)</th></tr></thead>
           <tbody>{hours.map(point => <tr key={point.time}><th scope="row">{dateTime(point.time)}</th><td>{format(point.aqi)}</td><td>{format(point.pm25, 1)}</td><td>{format(point.pm10, 1)}</td></tr>)}</tbody>
         </table></div>
       </details>

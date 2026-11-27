@@ -26,7 +26,7 @@ export function SourceLink({ id, short }: { id: SourceId; short?: string }) {
 
 export function CardTitle({ icon, title, sub, right }: { icon: ReactNode; title: string; sub?: string; right?: ReactNode }) {
   return <div className="card-heading">
-    <span className="icon-tile">{icon}</span>
+    <span className="icon-tile" aria-hidden="true">{icon}</span>
     <div className="card-heading-text"><h2>{title}</h2>{sub && <p>{sub}</p>}</div>
     {right}
   </div>;
