@@ -2,7 +2,15 @@
   "compilerOptions": {
     "target": "ES2022", "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext", "moduleResolution": "Bundler", "jsx": "react-jsx",
-    "strict": true, "noUnusedLocals": true, "noUnusedParameters": true, "noEmit": true, "allowImportingTsExtensions": true, "skipLibCheck": true, "types": ["node", "vite/client"]
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "types": ["node", "vite/client"]
   },
   "include": ["src", "tests", "api", "*.ts"]
 }

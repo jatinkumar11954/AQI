@@ -79,7 +79,7 @@ describe('createAssistant Gemini boundary and fallback behavior', () => {
   it('sends strict JSON schema request to Gemini and returns verified SaansAI wording', async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toContain('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
-      expect((init?.headers as Record<string, string>)['x-goog-api-key']).toBe('fake-gemini-key');
+      expect(new Headers(init?.headers).get('x-goog-api-key')).toBe('fake-gemini-key');
       const parsedBody = JSON.parse(String(init?.body));
       expect(parsedBody.generationConfig.temperature).toBe(0);
       expect(parsedBody.generationConfig.responseMimeType).toBe('application/json');

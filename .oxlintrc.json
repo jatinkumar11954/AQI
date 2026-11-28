@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "eqeqeq": ["error", "smart"],
+    "no-var": "error",
+    "prefer-const": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/set-state-in-effect": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.ts", "src/**/*.tsx", "api/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "error",
+        "typescript/no-non-null-assertion": "error"
+      }
+    }
+  ],
+  "ignorePatterns": ["dist", "node_modules", "playwright-report", "test-results"]
+}

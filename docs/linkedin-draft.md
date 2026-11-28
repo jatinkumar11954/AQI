@@ -1,17 +1,29 @@
-# LinkedIn post draft
+# SaansAI — PromptWars Virtual Challenge 06 Journey
 
-On a smog day, can my family keep today’s plans, or should we change them?
+On a polluted morning in an Indian city, a single AQI number doesn't tell a household what to actually *do*—whether kids can play outside, when to air out a room, or whether switching a commute cuts exposure and fuel spending.
 
-That question guided SaansAI, my project for Google for Developers × Hack2skill PromptWars Virtual Challenge 06. Pick an Indian city, set up your household and commute, and the first screen gives you actions for today. It explains when a flexible activity could move, what you can do indoors on a zero-cost budget, and how a change in travel might affect petrol spending.
+That problem drove **SaansAI**, built for **Google for Developers × Hack2skill PromptWars Virtual Challenge 06**:
 
-One design decision mattered early. The lowest forecast hour can still be too polluted to recommend outdoor play. SaansAI checks the forecast, nearby station reports and the household’s schedule before suggesting a time. The screen labels CPCB station AQI, OpenAQ measurements and CAMS modeled US AQI separately.
+**1. Honest Data Provenance Over Single-Number Shortcuts**
+SaansAI keeps three live data layers separate and clearly timestamped:
+- **Open-Meteo CAMS** for modeled US AQI, PM2.5/PM10, and 48-hour outlooks
+- **OpenAQ v3** for nearby station mass concentrations (`µg/m³`)
+- **CPCB / India API relay** for India-scale AQI and pollutant sub-indices
+When a nearby monitor reports elevated pollution, conservative safety screens block timed outdoor suggestions rather than guessing.
 
-I used React, TypeScript, Tailwind and Hono on Vercel (`bom1`). Gemini’s first prompt selected one guidance topic. The revised prompt can select a second when the user asks about two decisions. The app applies the thresholds, performs the calculations and supplies the exact wording and sources from its reviewed catalog.
+**2. Genuine Gemini Routing With Deterministic Safety**
+Instead of letting an LLM invent health advice or AQI numbers, Gemini routes the household's question (stripped of personal identifiers and schedule hours) to **one or two approved topic IDs** via strict JSON schema. SaansAI then computes thresholds, personalizes guidance for children, older adults, shift hours, and budgets, and renders reviewed citations (`AirNow`, `US EPA`, `CPCB`)—with labeled Rules fallback if Gemini is ever unavailable.
 
-I supplied the challenge requirements and evaluation priorities, configured the provider keys and deployed to Vercel. Earlier AI-assisted prototyping and Google Antigravity helped produce the app, tests and documentation. Codex audited the live site and generated the latest engineering changes. We checked the results against real API responses, browser runs and reproducible tests.
+**3. Killing the 60-Second Cold Start on Vercel (`bom1`)**
+Moving from cross-origin GitHub Pages + Render free tier (~50–60s idle wake-up) to same-origin **Vercel Hobby (Fluid Compute in Mumbai `bom1`)** cut cold `/api/ready` latency to **~0.4 seconds** and eliminated CORS overhead.
 
-A regional model and reference monitor can inform a decision. Conditions on a school route or inside a home can still differ.
+**4. Measured Engineering Quality**
+- **59 / 59** unit & API tests passing (**99.5% overall line coverage**, **100% server line coverage**)
+- **20 / 20** Desktop & Pixel 7 Mobile Playwright journeys passing (**0 axe WCAG 2.2 violations**)
+- **100 / 100** Desktop Lighthouse scores (**90 Perf / 100 A11y / 100 Best Practices / 100 SEO** on Mobile)
+- **0** dependency advisories (`npm audit`) and verified live production smoke tests across 6 Indian cities
 
-Try the [live application](https://aqi-tau.vercel.app/) or see the [project and evaluation evidence](https://github.com/jatinkumar11954/AQI).
+Try the live app: **https://aqi-tau.vercel.app**
+Repository & evaluation evidence: **https://github.com/jatinkumar11954/AQI**
 
-#PromptWars #GoogleForDevelopers #AirQuality #Gemini
+#PromptWars #GoogleForDevelopers #Gemini #AirQuality #TypeScript #React #Vercel #WebAccessibility

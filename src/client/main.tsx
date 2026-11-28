@@ -5,7 +5,7 @@ import { z } from 'zod';
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/dm-sans';
 import './styles.css';
-import { CITIES, DEFAULT_PROFILE, citySchema, profileSchema, type City } from '../shared/model';
+import { CITIES, DEFAULT_PROFILE, citySchema, profileKey, profileSchema, type City } from '../shared/model';
 import { dateKey, formatDate } from '../shared/planner';
 import { useAirReadings } from './use-air-readings';
 import { AirOverview } from './overview';
@@ -47,7 +47,8 @@ function App() {
   const [hindi, setHindi] = useStored('saans:hindi', false, hindiSchema);
   const [locationOpen, setLocationOpen] = useState(false);
   const { env, error, now, refreshing, slow, reloadData } = useAirReadings(city);
-  const key = city.lat + ',' + city.lon;
+  const cityKey = `${city.lat},${city.lon}`;
+  const currentTitle = pages.find(item => item.id === page)?.title;
 
   useEffect(() => {
     function onHash() {
@@ -67,67 +68,135 @@ function App() {
   const dayKey = dateKey(now);
   const unavailable = !refreshing && env.airStatus === 'unavailable' && !env.station;
   const readingIssue = error || (unavailable ? 'Live air readings are temporarily unavailable.' : '');
-  const readingStatus = slow ? 'Still connecting to the air data service. It may take about a minute after an idle period.'
+  const readingStatus = slow
+    ? 'Still connecting to the air data service. It may take about a minute after an idle period.'
     : readingIssue && `${readingIssue} ${env.air || env.station || env.india ? 'Showing the last data from this visit.' : 'General guidance is still available.'}`;
-  return <>
-    <a href="#main-title" className="skip" onClick={event => { event.preventDefault(); document.getElementById('main-title')?.focus(); }}>Skip to content</a>
-    <div className="shell">
-      <aside className="sidebar">
-        <a className="brand" href="#today">
-          <span className="mark"><Wind size={22} /></span>
-          <span><strong>Saans<span>AI</span></strong><small>URBAN AIR ASSISTANT</small></span>
-        </a>
-        <nav className="navigation" aria-label="Main navigation">
-          {pages.map(({ id, title, icon: Icon }) => <a key={id} href={'#' + id} aria-current={id === page ? 'page' : undefined}>
-            <Icon size={19} /><span>{title}</span>
-          </a>)}
-        </nav>
-        <div className="sidebar-bottom">
-          <button className="source-button" onClick={() => {
-            const target = document.getElementById('sources');
-            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            target?.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'end' });
-            target?.focus({ preventScroll: true });
-          }}><Info size={18} /> Data &amp; methods</button>
-          <div className="sidebar-note"><Leaf size={18} /><span>Built for Indian households</span></div>
+
+  return (
+    <>
+      <a
+        href="#main-title"
+        className="skip"
+        onClick={event => {
+          event.preventDefault();
+          document.getElementById('main-title')?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      <div className="shell">
+        <aside className="sidebar">
+          <a className="brand" href="#today">
+            <span className="mark"><Wind size={22} /></span>
+            <span>
+              <strong>Saans<span>AI</span></strong>
+              <small>URBAN AIR ASSISTANT</small>
+            </span>
+          </a>
+          <nav className="navigation" aria-label="Main navigation">
+            {pages.map(({ id, title, icon: Icon }) => (
+              <a key={id} href={`#${id}`} aria-current={id === page ? 'page' : undefined}>
+                <Icon size={19} />
+                <span>{title}</span>
+              </a>
+            ))}
+          </nav>
+          <div className="sidebar-bottom">
+            <button
+              className="source-button"
+              onClick={() => {
+                const target = document.getElementById('sources');
+                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target?.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'end' });
+                target?.focus({ preventScroll: true });
+              }}
+            >
+              <Info size={18} /> Data &amp; methods
+            </button>
+            <div className="sidebar-note">
+              <Leaf size={18} />
+              <span>Built for Indian households</span>
+            </div>
+          </div>
+        </aside>
+        <div className="workspace">
+          <header className="topbar">
+            <span className="breadcrumb">
+              <Activity size={17} /> SaansAI <span>/</span> {currentTitle}
+            </span>
+            <div className="top-actions">
+              <button
+                className="button location"
+                aria-haspopup="dialog"
+                aria-expanded={locationOpen}
+                onClick={() => setLocationOpen(true)}
+              >
+                <MapPin size={17} />
+                <span>{city.name}, India</span>
+                <ChevronDown size={15} />
+              </button>
+              <button
+                className="button language"
+                aria-pressed={hindi}
+                onClick={() => setHindi(!hindi)}
+                aria-label="हिंदी — Toggle Hindi quick tips"
+              >
+                <span lang="hi">हिंदी</span>
+              </button>
+            </div>
+          </header>
+          <main className="content">
+            <div className="page-heading">
+              <div>
+                <h1 id="main-title" tabIndex={-1}>{headings[page]}</h1>
+                <p>{intros[page]}</p>
+              </div>
+              {page === 'today' && (
+                <button className="button refresh" disabled={refreshing} onClick={reloadData}>
+                  <RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Updating' : 'Refresh'}
+                </button>
+              )}
+            </div>
+            <div className={readingStatus ? 'notice' : 'sr-only'}>
+              <p role="status">{readingStatus}</p>
+              {readingIssue && (
+                <button className="button mt-2" disabled={refreshing} onClick={reloadData}>
+                  Retry live readings
+                </button>
+              )}
+            </div>
+            {page === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
+            <Suspense fallback={<p className="empty" role="status">Opening this section…</p>}>
+              {page === 'planner' && (
+                <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />
+              )}
+              {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
+              {page === 'impact' && <Improvement env={env} now={now} />}
+              {page === 'assistant' && <Assistant key={`${cityKey}:${profileKey(profile)}`} city={city} profile={profile} hindi={hindi} env={env} />}
+            </Suspense>
+            <footer className="footer" id="sources" tabIndex={-1}>
+              <div>
+                <strong>SaansAI</strong>
+                <span>{formatDate(now)} · All times in IST</span>
+              </div>
+              <div>
+                <SourceLink id="model" short="Open-Meteo / CAMS" />
+                <SourceLink id="openaq" short="OpenAQ" />
+                <SourceLink id="cpcb" short="CPCB" />
+                <SourceLink id="aqi" short="US AQI scale" />
+              </div>
+            </footer>
+          </main>
         </div>
-      </aside>
-      <div className="workspace">
-        <header className="topbar">
-          <span className="breadcrumb"><Activity size={17} /> SaansAI <span>/</span> {pages.find(item => item.id === page)?.title}</span>
-          <div className="top-actions">
-            <button className="button location" aria-haspopup="dialog" aria-expanded={locationOpen} onClick={() => setLocationOpen(true)}><MapPin size={17} /><span>{city.name}, India</span><ChevronDown size={15} /></button>
-            <button className="button language" aria-pressed={hindi} onClick={() => setHindi(!hindi)} aria-label="हिंदी — Toggle Hindi quick tips"><span lang="hi">हिंदी</span></button>
-          </div>
-        </header>
-        <main className="content">
-          <div className="page-heading">
-            <div><h1 id="main-title" tabIndex={-1}>{headings[page]}</h1><p>{intros[page]}</p></div>
-            {page === 'today' && <button className="button refresh" disabled={refreshing} onClick={reloadData}>
-              <RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Updating' : 'Refresh'}
-            </button>}
-          </div>
-          <div className={readingStatus ? 'notice' : 'sr-only'}>
-            <p role="status">{readingStatus}</p>
-            {readingIssue && <button className="button mt-2" disabled={refreshing} onClick={reloadData}>Retry live readings</button>}
-          </div>
-          {page === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
-          <Suspense fallback={<p className="empty" role="status">Opening this section…</p>}>
-          {page === 'planner' && <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />}
-          {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
-          {page === 'impact' && <Improvement env={env} now={now} />}
-          {page === 'assistant' && <Assistant key={key + JSON.stringify(profile)} city={city} profile={profile} hindi={hindi} env={env} />}
-          </Suspense>
-          <footer className="footer" id="sources" tabIndex={-1}>
-            <div><strong>SaansAI</strong><span>{formatDate(now)} · All times in IST</span></div>
-            <div><SourceLink id="model" short="Open-Meteo / CAMS" /><SourceLink id="openaq" short="OpenAQ" /><SourceLink id="cpcb" short="CPCB" /><SourceLink id="aqi" short="US AQI scale" /></div>
-          </footer>
-        </main>
+        {page !== 'assistant' && (
+          <a className="mobile-ask" href="#assistant">
+            <Sparkles size={18} /> Ask SaansAI <ArrowRight size={15} />
+          </a>
+        )}
       </div>
-      {page !== 'assistant' && <a className="mobile-ask" href="#assistant"><Sparkles size={18} /> Ask SaansAI <ArrowRight size={15}/></a>}
-    </div>
-    <LocationDialog open={locationOpen} city={city} close={() => setLocationOpen(false)} choose={chooseCity} />
-  </>;
+      <LocationDialog open={locationOpen} city={city} close={() => setLocationOpen(false)} choose={chooseCity} />
+    </>
+  );
 }
 const root = document.getElementById('root');
 if (!root) throw new Error('SaansAI requires a root element.');

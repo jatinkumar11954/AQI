@@ -4,9 +4,28 @@ import { SOURCES, type Answer, type City, type Environment, type Profile } from 
 import { askSaansAI, assistantBudgetMs } from './data';
 import { CardTitle, SourceLink } from './ui';
 
-const prompts = ['Should I open the windows?', 'How should I adjust my commute?', 'Can the children play outside?', 'What can I do about cooking smoke?'];
-const labels = { unconfigured: 'Gemini is unconfigured · Rules answer', quota: 'Gemini quota reached · Rules answer', unavailable: 'Gemini unavailable · Rules answer', privacy: 'Contact details kept out of Gemini · Rules answer' };
+const prompts = [
+  'Should I open the windows?',
+  'How should I adjust my commute?',
+  'Can the children play outside?',
+  'What can I do about cooking smoke?',
+];
 
+const labels: Record<NonNullable<Answer['status']>, string> = {
+  unconfigured: 'Gemini is unconfigured · Rules answer',
+  quota: 'Gemini quota reached · Rules answer',
+  unavailable: 'Gemini unavailable · Rules answer',
+  privacy: 'Contact details kept out of Gemini · Rules answer',
+};
+
+function modeLabel(answer: Answer): string {
+  if (answer.mode === 'gemini') {
+    return answer.sources.length ? 'GEMINI · SOURCE-GROUNDED' : 'GEMINI · GUIDANCE SCOPE';
+  }
+  return answer.status ? labels[answer.status] : 'Rules answer';
+}
+
+/** Provides the grounded Gemini / rule-fallback Q&A assistant view. */
 export function Assistant({ city, profile, hindi, env }: { city: City; profile: Profile; hindi: boolean; env: Environment }) {
   const [question, setQuestion] = useState('');
   const [entries, setEntries] = useState<{ id: number; question: string; answer: Answer }[]>([]);
@@ -60,41 +79,93 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
     setSlow(false);
     input.current?.focus();
   }
-  function submit(event: FormEvent) { event.preventDefault(); void ask(question); }
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void ask(question);
+  }
 
-  return <div className="section-grid">
-    <section className="card assistant-card">
-      <CardTitle icon={<Sparkles size={20}/>} title="Your air assistant" sub={city.name + ' · Household settings applied'} />
-      <div className="prompt-grid">{prompts.map(prompt => <button className="button" key={prompt} disabled={Boolean(pending)} onClick={() => void ask(prompt)}>{prompt}</button>)}</div>
-      <div className="conversation" role="log" aria-label="Assistant responses">
-        {entries.map(({ id, question: text, answer }) => <article key={id}>
-          <div className="question-bubble">{text}</div>
-          <div className="answer-bubble"><span className="eyebrow">{answer.mode === 'gemini' ? (answer.sources.length ? 'GEMINI · SOURCE-GROUNDED' : 'GEMINI · GUIDANCE SCOPE') : answer.status ? labels[answer.status] : 'Rules answer'}</span>
-            <p>{answer.text}</p>{answer.followUp && <p>{answer.followUp}</p>}<p className="muted">{answer.context}</p>
-            <div className="answer-sources">{answer.sources.map(id => <SourceLink key={id} id={id}/>)}</div></div>
-        </article>)}
-      </div>
-      <div className={pending ? 'empty' : 'sr-only'}>
-        <p role="status">{pending && (slow ? 'Still waiting for the assistant. The service can take longer after being idle.' : 'Checking your context…')}</p>
-        {pending && <button className="button mt-2" type="button" onClick={cancel}>Cancel question</button>}
-      </div>
-      {error && <p className="notice" role="alert">{error}</p>}
-      <form className="assistant-form" onSubmit={submit}>
-        <label htmlFor={fieldId}>Your question</label>
-        <div className="search"><input ref={input} id={fieldId} name="question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={350} placeholder="Ask about your local air…" required minLength={2}/>
-          <button className="button primary" disabled={Boolean(pending) || question.trim().length < 2}><Send size={17}/> Send</button></div>
-      </form>
-    </section>
-    <section className="card">
-      <CardTitle icon={<CircleHelp size={20}/>} title="How answers are grounded"/>
-      <div className="guidance"><Signal icon={<CalendarDays size={18}/>}>Plans use your selected city, the current model and household settings.</Signal>
-        <Signal icon={<ShieldCheck size={18}/>}>Gemini selects the guidance most relevant to your question and local conditions. SaansAI supplies the wording, sources and calculations.</Signal>
-        <Signal icon={<House size={18}/>}>Questions and basic activity settings can be sent to Gemini. Keep names, addresses and medical information out of questions.</Signal></div>
-      <SourceLink id="activity" short={SOURCES.activity.title} />
-    </section>
-  </div>;
+  return (
+    <div className="section-grid">
+      <section className="card assistant-card">
+        <CardTitle icon={<Sparkles size={20} />} title="Your air assistant" sub={`${city.name} · Household settings applied`} />
+        <div className="prompt-grid">
+          {prompts.map(prompt => (
+            <button className="button" key={prompt} disabled={Boolean(pending)} onClick={() => void ask(prompt)}>
+              {prompt}
+            </button>
+          ))}
+        </div>
+        <div className="conversation" role="log" aria-label="Assistant responses">
+          {entries.map(({ id, question: text, answer }) => (
+            <article key={id}>
+              <div className="question-bubble">{text}</div>
+              <div className="answer-bubble">
+                <span className="eyebrow">{modeLabel(answer)}</span>
+                <p>{answer.text}</p>
+                {answer.followUp && <p>{answer.followUp}</p>}
+                <p className="muted">{answer.context}</p>
+                <div className="answer-sources">
+                  {answer.sources.map(sourceId => <SourceLink key={sourceId} id={sourceId} />)}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className={pending ? 'empty' : 'sr-only'}>
+          <p role="status">
+            {pending && (slow ? 'Still waiting for the assistant. The service can take longer after being idle.' : 'Checking your context…')}
+          </p>
+          {pending && (
+            <button className="button mt-2" type="button" onClick={cancel}>
+              Cancel question
+            </button>
+          )}
+        </div>
+        {error && <p className="notice" role="alert">{error}</p>}
+        <form className="assistant-form" onSubmit={submit}>
+          <label htmlFor={fieldId}>Your question</label>
+          <div className="search">
+            <input
+              ref={input}
+              id={fieldId}
+              name="question"
+              value={question}
+              onChange={event => setQuestion(event.target.value)}
+              maxLength={350}
+              placeholder="Ask about your local air…"
+              required
+              minLength={2}
+            />
+            <button className="button primary" disabled={Boolean(pending) || question.trim().length < 2}>
+              <Send size={17} /> Send
+            </button>
+          </div>
+        </form>
+      </section>
+      <section className="card">
+        <CardTitle icon={<CircleHelp size={20} />} title="How answers are grounded" />
+        <div className="guidance">
+          <Signal icon={<CalendarDays size={18} />}>
+            Plans use your selected city, the current model and household settings.
+          </Signal>
+          <Signal icon={<ShieldCheck size={18} />}>
+            Gemini selects the guidance most relevant to your question and local conditions. SaansAI supplies the wording, sources and calculations.
+          </Signal>
+          <Signal icon={<House size={18} />}>
+            Questions and basic activity settings can be sent to Gemini. Keep names, addresses and medical information out of questions.
+          </Signal>
+        </div>
+        <SourceLink id="activity" short={SOURCES.activity.title} />
+      </section>
+    </div>
+  );
 }
 
 function Signal({ icon, children }: { icon: ReactNode; children: ReactNode }) {
-  return <div><span className="icon-tile">{icon}</span><p>{children}</p></div>;
+  return (
+    <div>
+      <span className="icon-tile">{icon}</span>
+      <p>{children}</p>
+    </div>
+  );
 }

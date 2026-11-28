@@ -11,13 +11,30 @@ import { createLimiter, UpstreamError, type Fetcher } from '../shared/upstream.j
 
 export type Runtime = Keys & { clientAddress?: string };
 const questionSchema = z.object({
-  location: pointSchema, profile: profileSchema, question: z.string().trim().min(2).max(350),
+  location: pointSchema,
+  profile: profileSchema,
+  question: z.string().trim().min(2).max(350),
   language: z.enum(['en', 'hi']).default('en'),
 }).strict();
 const decimal = z.union([z.number(), z.string().regex(/^-?\d{1,3}(?:\.\d{1,10})?$/).transform(Number)]);
 const querySchema = z.object({ lat: decimal, lon: decimal }).pipe(pointSchema);
 const issue = (code: string, message: string) => ({ error: { code, message } });
 
+function isAllowedAskOrigin(
+  origin: string | undefined,
+  requestUrl: string,
+  developmentOrigin: string | undefined,
+  serviceOrigin: string | undefined,
+  configuredOrigin: string | undefined,
+): boolean {
+  if (!origin) return true;
+  return origin === new URL(requestUrl).origin
+    || origin === developmentOrigin
+    || origin === serviceOrigin
+    || origin === httpsOrigin(configuredOrigin);
+}
+
+/** Creates the Hono API application with strict origin checks, validation, caching, and rate limiting. */
 export function createApp({
   fetcher = (target, init) => globalThis.fetch(target, init), clock = () => Math.floor(Date.now() / 1000),
   developmentOrigin, publicServiceOrigin,
@@ -54,6 +71,7 @@ export function createApp({
       }
     }
     await next();
+    return;
   });
 
   app.get('/api/health', context => context.json({ status: 'ok' }));
@@ -76,15 +94,16 @@ export function createApp({
     maxSize: 4096, onError: context => context.json(issue('BODY_TOO_LARGE', 'The question or profile is too large.'), 413),
   }), async context => {
     const origin = context.req.header('origin');
-    if (origin && origin !== new URL(context.req.url).origin && origin !== developmentOrigin && origin !== serviceOrigin
-      && origin !== httpsOrigin(context.env?.SAANS_PUBLIC_ORIGIN)) {
+    if (!isAllowedAskOrigin(origin, context.req.url, developmentOrigin, serviceOrigin, context.env?.SAANS_PUBLIC_ORIGIN)) {
       return context.json(issue('FORBIDDEN_ORIGIN', 'Use the assistant from this site.'), 403);
     }
     if (context.req.header('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
       return context.json(issue('CONTENT_TYPE', 'Send a JSON request.'), 415);
     }
     const parsed = questionSchema.safeParse(await context.req.json().catch(() => null));
-    if (!parsed.success) return context.json(issue('INVALID_QUESTION', 'Check the question, selected city and household profile.'), 400);
+    if (!parsed.success) {
+      return context.json(issue('INVALID_QUESTION', 'Check the question, selected city and household profile.'), 400);
+    }
     const { location, profile, question, language } = parsed.data;
     const keys = context.env ?? {};
     const data = await environment.get(location, keys.OPENAQ_API_KEY);

@@ -24,6 +24,7 @@ function searchMessage(state: SearchState) {
   }
 }
 
+/** Modal dialog allowing the user to search Indian cities/neighbourhoods or pick a preset city. */
 export function LocationDialog({ open, city, close, choose }: { open: boolean; city: City; close: () => void; choose: (city: City) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -73,20 +74,57 @@ export function LocationDialog({ open, city, close, choose }: { open: boolean; c
 
   const places = state.status === 'complete' ? state.places : [];
   const busy = state.status === 'pending';
-  return <dialog ref={dialog} className="location-dialog" aria-labelledby="location-title" onCancel={close} onClose={close}>
-    <div className="card-heading"><span className="icon-tile" aria-hidden="true"><MapPin size={20} /></span><div className="card-heading-text"><h2 id="location-title">Choose your city</h2><p>Search Indian cities or neighbourhoods.</p></div>
-      <button className="button icon-button" onClick={close} aria-label="Close location picker"><X size={18} /></button></div>
-    <form className="search" onSubmit={search}>
-      <label className="sr-only" htmlFor="city-search">City or neighbourhood</label>
-      <input ref={input} id="city-search" name="city" value={query} onChange={event => edit(event.target.value)} maxLength={64} placeholder="e.g. Pune or Connaught Place" required minLength={2} />
-      <button className="button primary" disabled={busy || query.trim().length < 2}><Search size={17} />{busy ? 'Searching' : 'Search'}</button>
-    </form>
-    <div role="status" aria-live="polite">{searchMessage(state)}</div>
-    <p className="eyebrow results-label">{places.length ? 'SEARCH RESULTS' : 'SUGGESTED CITIES'}</p>
-    <div className="place-grid">
-      {(places.length ? places : CITIES).map(place => <button key={place.name + place.lat + place.lon} className="place" onClick={() => choose(place)} aria-pressed={place.lat === city.lat && place.lon === city.lon}>
-        <strong>{place.name}</strong><span>{place.state}</span>
-      </button>)}
-    </div>
-  </dialog>;
+  return (
+    <dialog ref={dialog} className="location-dialog" aria-labelledby="location-title" onCancel={close} onClose={close}>
+      <div className="card-heading">
+        <span className="icon-tile" aria-hidden="true">
+          <MapPin size={20} />
+        </span>
+        <div className="card-heading-text">
+          <h2 id="location-title">Choose your city</h2>
+          <p>Search Indian cities or neighbourhoods.</p>
+        </div>
+        <button className="button icon-button" onClick={close} aria-label="Close location picker">
+          <X size={18} />
+        </button>
+      </div>
+      <form className="search" onSubmit={search}>
+        <label className="sr-only" htmlFor="city-search">
+          City or neighbourhood
+        </label>
+        <input
+          ref={input}
+          id="city-search"
+          name="city"
+          value={query}
+          onChange={event => edit(event.target.value)}
+          maxLength={64}
+          placeholder="e.g. Pune or Connaught Place"
+          required
+          minLength={2}
+        />
+        <button className="button primary" disabled={busy || query.trim().length < 2}>
+          <Search size={17} />
+          {busy ? 'Searching' : 'Search'}
+        </button>
+      </form>
+      <div role="status" aria-live="polite">
+        {searchMessage(state)}
+      </div>
+      <p className="eyebrow results-label">{places.length ? 'SEARCH RESULTS' : 'SUGGESTED CITIES'}</p>
+      <div className="place-grid">
+        {(places.length ? places : CITIES).map(place => (
+          <button
+            key={place.name + place.lat + place.lon}
+            className="place"
+            onClick={() => choose(place)}
+            aria-pressed={place.lat === city.lat && place.lon === city.lon}
+          >
+            <strong>{place.name}</strong>
+            <span>{place.state}</span>
+          </button>
+        ))}
+      </div>
+    </dialog>
+  );
 }

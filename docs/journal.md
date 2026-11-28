@@ -34,3 +34,9 @@
 - Matched the browser’s retry and wait behavior to Render’s free-instance wake time. Added local readiness, coalesced Gemini classifications, reduced model context, set request caps, and constrained the revised prompt to one or two approved guidance topics.
 - The first regression run surfaced a missing direct planner link. Added the link and made the cold-start journey exercise a budget change before the forecast recovered. Typecheck, production build, 48 unit/API tests and all 18 Playwright runs passed after the fix.
 - The [evaluation report](evaluation.md) records the quality gates and separates fixture behavior from observations in production.
+
+### Vercel Same-Origin Migration, Architecture Audit & Demo Production
+- Migrated production hosting from cross-origin GitHub Pages + Render (~50–60s cold spin-up) to same-origin Vercel Hobby (`bom1` Mumbai) at `https://aqi-tau.vercel.app` using `api/index.ts`, `vercel.json`, and CI-gated `.github/workflows/vercel.yml`.
+- Resolved Node.js ESM `ERR_MODULE_NOT_FOUND` on Vercel by adding explicit `.js` relative import extensions across `api/`, `src/server/`, and `src/shared/`, removed client-asset `includeFiles` bloat, and updated the CI smoke step to target the public `Aliased` production domain.
+- Fixed live-region state in `LocationDialog`, hoisted `Intl.DateTimeFormat` in `planner.ts`, normalized Gemini classification cache keys, improved `Data & methods` focus feedback and `Cleaner window` threshold clarity, and closed unit/API coverage gaps (`59/59` tests passing, `99.54%` overall line coverage, `100%` server line coverage, `20/20` live E2E + axe WCAG checks, Desktop Lighthouse `100/100/100/100`).
+- Built automated Playwright + FFmpeg/TTS demo recording and assembly scripts (`scripts/record-demo.mjs`, `scripts/produce-demo.mjs`) generating the 1080p submission video, subtitles, thumbnail, and vertical reel outside the deployment bundle.

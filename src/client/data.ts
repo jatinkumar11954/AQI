@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { httpsOrigin } from '../shared/deployment';
-import { answerSchema, citySearchSchema, environmentSchema, searchResponseSchema, type Answer, type City, type Environment, type Profile } from '../shared/model';
+import {
+  answerSchema,
+  citySearchSchema,
+  environmentSchema,
+  searchResponseSchema,
+  type Answer,
+  type City,
+  type Environment,
+  type Profile,
+} from '../shared/model';
 
 const pages = import.meta.env.MODE === 'pages';
 const apiOrigin = pages ? httpsOrigin(import.meta.env.VITE_API_BASE_URL) : undefined;
@@ -14,7 +23,10 @@ let browserFeeds: Promise<BrowserFeeds> | undefined;
 
 function publicFeeds() {
   return browserFeeds ??= import('../shared/environment').then(({ createEnvironment }) =>
-    createEnvironment((target, settings) => fetch(target, { ...settings, credentials: 'omit' }), () => Math.floor(Date.now() / 1000)),
+    createEnvironment(
+      (target, settings) => fetch(target, { ...settings, credentials: 'omit' }),
+      () => Math.floor(Date.now() / 1000),
+    ),
   );
 }
 
@@ -43,7 +55,8 @@ async function request<T>(path: string, schema: z.ZodType<T>, signal: AbortSigna
   signal.throwIfAborted();
   if (!response.ok) {
     const error = errorResponse.safeParse(body).data;
-    throw new HttpError(response.status, error?.error.message ?? 'The data request could not be completed.', response.headers.get('Retry-After'));
+    const message = error?.error.message ?? 'The data request could not be completed.';
+    throw new HttpError(response.status, message, response.headers.get('Retry-After'));
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw new HttpError(502, 'The data service returned an invalid response.');
@@ -53,6 +66,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, signal: AbortSigna
 const transient = (cause: unknown) => cause instanceof TypeError || (cause instanceof HttpError
   && (cause.status === 502 || cause.status === 503 || cause.status === 504));
 
+/** Fetches current air quality, hourly forecast, weather, and station readings for a coordinate pair. */
 export async function readEnvironment(city: Coordinates, signal: AbortSignal): Promise<Environment> {
   if (publicData) return readPublic(signal, feeds => feeds.get(city));
   const path = '/api/environment?' + locationParams(city);
@@ -65,6 +79,7 @@ export async function readEnvironment(city: Coordinates, signal: AbortSignal): P
   }
 }
 
+/** Searches Indian cities and neighbourhoods via `/api/places` or the keyless static fallback. */
 export async function searchCities(query: string, signal: AbortSignal): Promise<City[]> {
   if (publicData) {
     const parsed = citySearchSchema.safeParse(query);
@@ -74,7 +89,15 @@ export async function searchCities(query: string, signal: AbortSignal): Promise<
   return (await request('/api/places?q=' + encodeURIComponent(query), searchResponseSchema, signal)).places;
 }
 
-export async function askSaansAI(question: string, city: City, profile: Profile, language: 'en' | 'hi', environment: Environment, signal: AbortSignal): Promise<Answer> {
+/** Submits an air-quality question to `/api/ask` and falls back to deterministic local rules when offline or rate-limited. */
+export async function askSaansAI(
+  question: string,
+  city: City,
+  profile: Profile,
+  language: 'en' | 'hi',
+  environment: Environment,
+  signal: AbortSignal,
+): Promise<Answer> {
   let fallbackStatus: Answer['status'] = publicData ? 'unconfigured' : 'unavailable';
   signal.throwIfAborted();
   if (!publicData) {

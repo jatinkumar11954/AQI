@@ -4,6 +4,8 @@ import { z } from 'zod';
 z.config({ jitless: true });
 
 export const HOUR = 3600;
+/** Maximum age in seconds before ground-station readings are considered stale. */
+export const OBSERVATION_MAX_AGE = 3 * HOUR;
 export const TIMEZONE = 'Asia/Kolkata';
 export const latitude = z.number().min(6).max(38);
 export const longitude = z.number().min(67).max(98);
@@ -43,34 +45,85 @@ export const PROFILES: { name: string; description: string; city: City; profile:
     profile: { ...DEFAULT_PROFILE, work: 'outdoor', commute: 'two-wheeler', workStart: 7, workEnd: 15 } },
 ];
 
+/** Returns a stable string key representing every field of a household profile. */
+export function profileKey(profile: Profile): string {
+  return [
+    profile.children,
+    profile.seniors,
+    profile.sensitive,
+    profile.work,
+    profile.commute,
+    profile.workStart,
+    profile.workEnd,
+    profile.activity,
+    profile.budget,
+  ].join(':');
+}
+
+/** Checks structural equality between two household profiles. */
+export function sameProfile(a: Profile, b: Profile): boolean {
+  return a.children === b.children
+    && a.seniors === b.seniors
+    && a.sensitive === b.sensitive
+    && a.work === b.work
+    && a.commute === b.commute
+    && a.workStart === b.workStart
+    && a.workEnd === b.workEnd
+    && a.activity === b.activity
+    && a.budget === b.budget;
+}
+
 export const airTimestamp = z.number().int().min(1_500_000_000).max(4_100_000_000);
 export const concentration = z.number().nonnegative();
 export const modeledAqi = z.number().int().min(0).max(5000);
 const airPointSchema = z.object({
-  time: airTimestamp, aqi: modeledAqi.nullable(), pm25: concentration.nullable(), pm10: concentration.nullable(),
+  time: airTimestamp,
+  aqi: modeledAqi.nullable(),
+  pm25: concentration.nullable(),
+  pm10: concentration.nullable(),
 });
 export type AirPoint = z.infer<typeof airPointSchema>;
 const weatherSchema = z.object({
-  time: airTimestamp, temperature: z.number().nullable(), humidity: concentration.nullable(), wind: concentration.nullable(),
+  time: airTimestamp,
+  temperature: z.number().nullable(),
+  humidity: concentration.nullable(),
+  wind: concentration.nullable(),
 });
 export type Weather = z.infer<typeof weatherSchema>;
 const readingSchema = z.object({ value: concentration, time: airTimestamp });
 export type Reading = z.infer<typeof readingSchema>;
 const stationFields = z.object({
-  name: z.string(), owner: z.string(), provider: z.string(), distance: z.number().min(0).max(25),
+  name: z.string(),
+  owner: z.string(),
+  provider: z.string(),
+  distance: z.number().min(0).max(25),
 });
 const indiaIndex = z.number().min(0).max(500).nullable();
 const indiaStationSchema = stationFields.extend({
-  kind: z.literal('cpcb-relay'), time: airTimestamp, aqi: indiaIndex, pm25Index: indiaIndex, pm10Index: indiaIndex,
+  kind: z.literal('cpcb-relay'),
+  time: airTimestamp,
+  aqi: indiaIndex,
+  pm25Index: indiaIndex,
+  pm10Index: indiaIndex,
 });
 export type IndiaStation = z.infer<typeof indiaStationSchema>;
-const stationSchema = z.discriminatedUnion('kind', [indiaStationSchema, stationFields.extend({
-  kind: z.literal('openaq'), id: z.number().int().positive(), pm25: readingSchema.nullable(), pm10: readingSchema.nullable(),
-})]);
+const stationSchema = z.discriminatedUnion('kind', [
+  indiaStationSchema,
+  stationFields.extend({
+    kind: z.literal('openaq'),
+    id: z.number().int().positive(),
+    pm25: readingSchema.nullable(),
+    pm10: readingSchema.nullable(),
+  }),
+]);
 export type Station = z.infer<typeof stationSchema>;
 const feedStatus = z.enum(['fresh', 'stale', 'unavailable']);
 export const environmentSchema = z.object({
-  air: z.object({ current: airPointSchema.nullable(), hourly: z.array(airPointSchema).max(96), fetchedAt: airTimestamp }).nullable(),
+  air: z.object({
+    current: airPointSchema.nullable(),
+    hourly: z.array(airPointSchema).max(96),
+    fetchedAt: airTimestamp,
+  }).nullable(),
   airStatus: feedStatus,
   weather: weatherSchema.nullable(),
   station: stationSchema.nullable(),
@@ -78,8 +131,28 @@ export const environmentSchema = z.object({
   india: z.object({ station: indiaStationSchema, status: z.enum(['fresh', 'stale']) }).optional(),
 });
 export type Environment = z.infer<typeof environmentSchema>;
-export const EMPTY_ENV: Environment = { air: null, airStatus: 'unavailable', weather: null, station: null, stationStatus: 'unconfigured' };
+export const EMPTY_ENV: Environment = {
+  air: null,
+  airStatus: 'unavailable',
+  weather: null,
+  station: null,
+  stationStatus: 'unconfigured',
+};
 
+export const SOURCE_IDS = [
+  'aqi',
+  'activity',
+  'clean',
+  'cooking',
+  'filter',
+  'openaq',
+  'relay',
+  'cpcb',
+  'model',
+  'weather',
+  'fuel',
+] as const;
+export type SourceId = typeof SOURCE_IDS[number];
 export const SOURCES = {
   aqi: { title: 'AirNow · US AQI scale', url: 'https://smoke.airnow.gov/aqi/aqi-basics/' },
   activity: { title: 'AirNow · Particle pollution activity guide', url: 'https://document.airnow.gov/air-quality-guide-for-particle-pollution.pdf' },
@@ -92,11 +165,13 @@ export const SOURCES = {
   model: { title: 'Open-Meteo · CAMS air quality', url: 'https://open-meteo.com/en/docs/air-quality-api' },
   weather: { title: 'Open-Meteo · Weather', url: 'https://open-meteo.com/en/docs' },
   fuel: { title: 'UK DESNZ · DUKES 2026 Annex A', url: 'https://www.gov.uk/government/statistics/digest-of-uk-energy-statistics-dukes-2026' },
-} as const;
-export type SourceId = keyof typeof SOURCES;
+} as const satisfies Record<SourceId, { title: string; url: string }>;
+
 export const answerSchema = z.object({
-  mode: z.enum(['gemini', 'rules']), text: z.string(), context: z.string(),
-  sources: z.enum(Object.keys(SOURCES) as SourceId[]).array(),
+  mode: z.enum(['gemini', 'rules']),
+  text: z.string(),
+  context: z.string(),
+  sources: z.enum(SOURCE_IDS).array(),
   status: z.enum(['unconfigured', 'quota', 'unavailable', 'privacy']).optional(),
   followUp: z.string().optional(),
 });

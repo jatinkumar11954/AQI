@@ -172,3 +172,32 @@ it('filters and ranks sub-second OpenAQ observations before converting to whole 
     kind: 'openaq', id: 1, pm25: { value: 42, time: NOW - 1 },
   });
 });
+
+it('selects the nearest eligible OpenAQ monitor and drops stale weather observations', async () => {
+  const fetcher = vi.fn(async (target: URL) => {
+    if (target.hostname === 'api.open-meteo.com') {
+      return Response.json({ current: { time: NOW - 3 * HOUR, temperature_2m: 22 } });
+    }
+    if (target.hostname !== 'api.openaq.org') return feed(target);
+    if (target.pathname.endsWith('/latest')) {
+      return Response.json({
+        results: [{ sensorsId: 20, value: 18, datetime: { utc: new Date((NOW - 120) * 1000).toISOString() } }],
+      });
+    }
+    return Response.json({
+      results: [
+        {
+          id: 1, name: 'Farther monitor', distance: 4500, provider: { name: 'OpenAQ' },
+          sensors: [{ id: 10, parameter: { name: 'pm25', units: 'µg/m³' } }],
+        },
+        {
+          id: 2, name: 'Nearest monitor', distance: 1200, provider: { name: 'OpenAQ' },
+          sensors: [{ id: 20, parameter: { name: 'pm25', units: 'µg/m³' } }],
+        },
+      ],
+    });
+  });
+  const result = await createEnvironment(fetcher, () => NOW).get(location, 'fixture-key');
+  expect(result.weather).toBeNull();
+  expect(result.station).toMatchObject({ kind: 'openaq', id: 2, name: 'Nearest monitor', distance: 1.2 });
+});

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { HOUR, type Environment } from './model.js';
 import { freshAir } from './planner.js';
 
+/** UK DESNZ DUKES 2026 petrol tailpipe emission proxy in kg CO2 per litre. */
 export const PETROL_FACTOR = 2.34;
 export const scenarioBounds = {
   currentKm: { min: 0, max: 500, step: 'any' },
@@ -39,6 +40,7 @@ export const DEFAULT_SCENARIO: Scenario = {
   currentKm: 18, alternativeKm: 8, days: 8, efficiency: 15,
   fuelPrice: 100, alternativeCost: 0, households: 25, currentMinutes: 25, alternativeMinutes: 15,
 };
+/** Computes monthly household/community CO2 savings and fuel-versus-fare cost deltas. */
 export function calculateImpact(input: z.infer<typeof travelScenarioSchema>) {
   const currentFuel = input.currentKm * input.days / input.efficiency;
   const alternativeFuel = input.alternativeKm * input.days / input.efficiency;
@@ -51,6 +53,8 @@ export function calculateImpact(input: z.infer<typeof travelScenarioSchema>) {
     savings: litres * input.fuelPrice - input.alternativeCost * input.days,
   };
 }
+
+/** Computes an illustrative ambient PM2.5 exposure proxy in µg·h/m³ for a fresh forecast hour. */
 export function outdoorProxy(env: Environment, now: number, time: number | undefined, minutes: number) {
   if (!freshAir(env, now) || time == null || time < now || time >= now + 24 * HOUR) return null;
   const pm = env.air?.hourly.find(point => point.time === time)?.pm25;

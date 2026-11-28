@@ -15,6 +15,20 @@ function markStale(data: Environment): Environment {
   };
 }
 
+function applyEmptyResponse(previous: Readings, location: string, data: Environment): Readings {
+  const earlier = previous.location === location ? previous.data : null;
+  if (earlier && (earlier.air || earlier.station || earlier.india)) {
+    return { location, data: markStale(earlier), error: 'Live air readings are temporarily unavailable.' };
+  }
+  return { location, data, error: '' };
+}
+
+function applyErrorResponse(previous: Readings, location: string, error: string): Readings {
+  const earlier = previous.location === location ? previous.data : null;
+  return { location, data: earlier ? markStale(earlier) : null, error };
+}
+
+/** Manages per-location air-reading fetches, abort/timeout recovery, stale fallback, and periodic refresh. */
 export function useAirReadings(city: City) {
   const { lat, lon } = city;
   const location = `${lat},${lon}`;
@@ -46,25 +60,16 @@ export function useAirReadings(city: City) {
       try {
         const data = await readEnvironment({ lat, lon }, AbortSignal.any([request.signal, timeout]));
         if (request.signal.aborted) return;
-        if (data.air || data.station || data.india || data.weather) {
-          setReadings({ location, data, error: '' });
-        } else {
-          setReadings(previous => {
-            const earlier = previous.location === location ? previous.data : null;
-            return earlier && (earlier.air || earlier.station || earlier.india)
-              ? { location, data: markStale(earlier), error: 'Live air readings are temporarily unavailable.' }
-              : { location, data, error: '' };
-          });
-        }
+        const hasAnyFeed = Boolean(data.air || data.station || data.india || data.weather);
+        setReadings(previous =>
+          hasAnyFeed ? { location, data, error: '' } : applyEmptyResponse(previous, location, data),
+        );
       } catch (cause) {
         if (request.signal.aborted) return;
-        const error = timeout.aborted ? 'The data service did not respond in time.'
+        const error = timeout.aborted
+          ? 'The data service did not respond in time.'
           : cause instanceof Error ? cause.message : 'The air data service is unavailable.';
-        setReadings(previous => ({
-          location,
-          data: previous.location === location && previous.data ? markStale(previous.data) : null,
-          error,
-        }));
+        setReadings(previous => applyErrorResponse(previous, location, error));
       } finally {
         window.clearTimeout(wait);
         if (!request.signal.aborted) {

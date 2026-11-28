@@ -351,3 +351,19 @@ it('serves stale cached entries when in-flight fan-out reaches the concurrency c
   release();
   await Promise.all(pending);
 });
+
+it('rejects malformed JSON request bodies and aborts timed-out upstream fetches', async () => {
+  const app = createApp({ fetcher: vi.fn(async target => baseFeed(target)), clock: () => NOW });
+  const malformed = await app.request('/api/ask', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{bad json',
+  });
+  expect(malformed.status).toBe(400);
+  await expect(malformed.json()).resolves.toMatchObject({ error: { code: 'INVALID_QUESTION' } });
+
+  const slowRequest = createTransport(async (_url, init) => new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+  }));
+  await expect(slowRequest(new URL('https://example.com'), {}, 0, 15)).rejects.toMatchObject({ name: 'AbortError' });
+});

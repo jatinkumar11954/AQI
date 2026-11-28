@@ -1,3 +1,4 @@
+/** Error representing an HTTP or validation failure from an upstream provider. */
 export class UpstreamError extends Error {
   constructor(readonly status: number) { super('Upstream request failed'); }
 }
@@ -30,6 +31,7 @@ async function boundedJson(response: Response) {
   }
 }
 
+/** Builds a bounded-byte, timeout-protected, retrying JSON HTTP request helper. */
 export function createTransport(fetcher: Fetcher) {
   return async function request(url: URL, init: RequestInit = {}, retries = 1, timeout = 2600): Promise<unknown> {
     for (let attempt = 0; ; attempt++) {
@@ -51,12 +53,14 @@ export function createTransport(fetcher: Fetcher) {
     }
   };
 }
+/** Constructs an HTTPS request URL with stringified query parameters. */
 export const url = (base: string, params: Record<string, string | number>) => {
   const target = new URL(base);
   for (const [key, value] of Object.entries(params)) target.searchParams.set(key, String(value));
   return target;
 };
 
+/** Creates a bounded LRU-evicting in-memory cache with request coalescing and stale-on-error fallback. */
 export function createCache<T>(maxKeys: number, ttl: number, staleTtl: number, clock: () => number) {
   const data = new Map<string, { value: T; at: number }>();
   const active = new Map<string, Promise<{ value: T; stale: boolean }>>();
@@ -71,7 +75,12 @@ export function createCache<T>(maxKeys: number, ttl: number, staleTtl: number, c
     }
     const task = Promise.resolve().then(get).then(value => {
       data.delete(key);
-      if (data.size >= maxKeys) data.delete(data.keys().next().value!);
+      if (data.size >= maxKeys) {
+        for (const oldest of data.keys()) {
+          data.delete(oldest);
+          break;
+        }
+      }
       data.set(key, { value, at: clock() });
       return { value, stale: false };
     }).catch(error => {
@@ -83,6 +92,7 @@ export function createCache<T>(maxKeys: number, ttl: number, staleTtl: number, c
   };
 }
 
+/** Creates a sliding fixed-window in-memory rate limiter with a bounded tracked-key table. */
 export function createLimiter(clock: () => number, seconds = 60) {
   let reset = 0;
   const counts = new Map<string, number>();

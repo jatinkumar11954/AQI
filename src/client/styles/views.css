@@ -1,0 +1,368 @@
+.section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.sample-grid,
+.place-grid,
+.routine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+.place {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--control-border);
+  background: var(--surface-soft);
+  text-align: left;
+  cursor: pointer;
+}
+
+.place:hover {
+  border-color: var(--forest);
+  background: var(--surface-tint);
+}
+
+.place[aria-pressed="true"] {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #ffffff;
+}
+
+.place span {
+  font-size: 0.83rem;
+  color: var(--muted);
+}
+
+.place[aria-pressed="true"] span {
+  color: #d6e4da;
+}
+
+.check-fields {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.25rem;
+}
+
+.check-fields legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.check-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.form-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.form-grid input,
+.form-grid select,
+.search input {
+  width: 100%;
+  padding: 0.56rem 0.72rem;
+  border-radius: 9px;
+  border: 1px solid var(--control-border);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.scenario-field {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.field-error {
+  margin: 0;
+  color: #991b1b;
+  font-size: 0.85rem;
+}
+
+.checklist-progress {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.form-grid input[aria-invalid="true"] {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.action-list article {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.action-list h3,
+.feature-box h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.action-list p,
+.feature-box p {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+}
+
+.hindi-tip {
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.check-action {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.15rem;
+  border-radius: 7px;
+  border: 2px solid var(--control-border);
+  background: var(--surface);
+  color: transparent;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.check-action input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.check-action:has(input:checked) {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: #ffffff;
+}
+
+.check-action:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.compare-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.compare-bars>div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+}
+
+.compare-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  overflow: hidden;
+}
+
+.compare-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--forest);
+}
+
+.prompt-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 120px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.question-bubble {
+  align-self: flex-end;
+  margin-left: auto;
+  max-width: 85%;
+  padding: 0.65rem 0.9rem;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--forest);
+  color: #ffffff;
+  font-size: 0.92rem;
+}
+
+.answer-bubble {
+  margin-top: 0.45rem;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.answer-bubble p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.answer-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.assistant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.assistant-form label {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.search {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.guidance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.guidance>div {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.guidance p {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.footer:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: 8px;
+}
+
+.footer>div {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.mobile-ask {
+  display: none;
+}
+
+.location-dialog {
+  width: min(680px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  margin: auto;
+  padding: 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 48px rgba(16, 36, 28, 0.24);
+}
+
+.location-dialog::backdrop {
+  background: rgba(16, 36, 28, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.location-dialog .search {
+  margin: 1rem 0 0.75rem;
+}
+
+.results-label {
+  margin: 0.75rem 0 0.55rem;
+}

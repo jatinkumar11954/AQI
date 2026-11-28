@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, HOUR, SOURCES, type Environment, type Profile } from '../src/shared/model';
+import { httpsOrigin } from '../src/shared/deployment';
+import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, HOUR, SOURCES, profileKey, sameProfile, type Environment, type Profile } from '../src/shared/model';
 import {
   dailyActions,
+  dateKey,
   findWindows,
   freshAir,
   futureHours,
@@ -48,6 +50,9 @@ describe('planner risk and time helpers', () => {
     expect(risk(200).tone).toBe('unhealthy');
     expect(risk(300).tone).toBe('very-unhealthy');
     expect(risk(301).tone).toBe('hazardous');
+    expect(risk(Number.NaN)).toEqual({ label: 'Hazardous', tone: 'hazardous' });
+    expect(dateKey(MIDNIGHT_IST)).toBe('2026-11-26');
+    expect(dateKey(MIDNIGHT_IST - 60)).toBe('2026-11-25');
   });
 
   it('rejects stale or future-drifted model data', () => {
@@ -260,4 +265,25 @@ it('uses a fresh India-scale station AQI to veto outdoor advice even when OpenAQ
   expect(findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST).usable).toBeNull();
   env.india.status = 'stale';
   expect(nearbyParticleCaution(env, MIDNIGHT_IST)).toBe(false);
+});
+
+describe('profile identity and origin validation helpers', () => {
+  it('compares profiles structurally and derives deterministic profile keys', () => {
+    const copy: Profile = { ...DEFAULT_PROFILE };
+    const edited: Profile = { ...DEFAULT_PROFILE, budget: 'low' };
+    expect(sameProfile(DEFAULT_PROFILE, copy)).toBe(true);
+    expect(sameProfile(DEFAULT_PROFILE, edited)).toBe(false);
+    expect(profileKey(DEFAULT_PROFILE)).toBe(profileKey(copy));
+    expect(profileKey(DEFAULT_PROFILE)).not.toBe(profileKey(edited));
+  });
+
+  it('validates clean HTTPS origins without paths, queries, fragments, or credentials', () => {
+    expect(httpsOrigin(undefined)).toBeUndefined();
+    expect(httpsOrigin('')).toBeUndefined();
+    expect(httpsOrigin('https://aqi-tau.vercel.app/')).toBe('https://aqi-tau.vercel.app');
+    expect(httpsOrigin('http://aqi-tau.vercel.app')).toBeUndefined();
+    expect(httpsOrigin('https://aqi-tau.vercel.app/subpath')).toBeUndefined();
+    expect(httpsOrigin('https://user:pass@aqi-tau.vercel.app')).toBeUndefined();
+    expect(httpsOrigin('not a valid url')).toBeUndefined();
+  });
 });
