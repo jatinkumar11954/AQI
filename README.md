@@ -84,7 +84,7 @@ flowchart LR
 │   │   ├── action-text.tsx      # Shared recommendation renderer with Hindi quick tip & rationale disclosure
 │   │   ├── ui.tsx               # Shared CardTitle & approved-source SourceLink primitives
 │   │   ├── format.ts            # Shared Indian-locale number & IST date-time formatters
-│   │   ├── data.ts              # Typed API client, transient retries & static keyless fallback adapters
+│   │   ├── data.ts              # API client, validation, transient retries and assistant fallback
 │   │   ├── use-air-readings.ts  # Location-isolated fetch lifecycle, cold-start messaging & staleness state
 │   │   ├── use-stored.ts        # Zod-validated localStorage persistence hook
 │   │   ├── styles/              # Modular CSS partials (base, shell, overview, views, responsive)
@@ -189,7 +189,7 @@ Defined in [.env.example](.env.example):
 | `GEMINI_API_KEY` | Server-only (optional) | Unset | Enables Gemini topic routing on `POST /api/ask`. |
 | `GEMINI_MODEL` | Server-only (optional) | `gemini-3.5-flash-lite` | Must match `/^gemini-[a-z0-9.-]{3,68}$/`. |
 | `GEMINI_DAILY_LIMIT` | Server-only (optional) | `100` | Integer (`1–2000`) capping Gemini classification calls per 24h window per instance. |
-| `SAANS_PUBLIC_ORIGIN` | Server-only (optional) | Unset | Exact `https://` origin allowlist for cross-origin static builds; omit on same-origin Vercel. |
+| `SAANS_PUBLIC_ORIGIN` | Server-only (optional) | Unset | Leave unset for the same-origin Vercel deployment. |
 
 ---
 
@@ -203,7 +203,6 @@ npm run check          # Strict TypeScript check (strict, noUnusedLocals, noUnus
 npm run test           # Run Vitest unit and API integration tests
 npm run test:coverage  # Run Vitest with V8 coverage thresholds (lines >=98%, statements >=94%, branches >=89%, functions >=93%)
 npm run build          # Build dist/client (Vite), dist/server.mjs (esbuild), and dist/worker.mjs (Cloudflare Worker)
-npm run build:pages    # Build standalone keyless client bundle for static hosting
 npx playwright install chromium
 npm run test:e2e       # Run Desktop + Mobile Chromium user journeys and axe-core WCAG A/AA checks
 node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, readiness, CSP, and 6-city telemetry
@@ -211,24 +210,18 @@ node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, re
 
 ### Verification results
 
-- Strict TypeScript, zero-warning lint, and the production and static Pages builds passed.
+- Strict TypeScript, zero-warning lint, and the production build passed.
 - The candidate passed **95 unit and API tests** with **100% line coverage** and **99.80% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
 - The CI workflow runs desktop and mobile Chromium journeys and axe checks on pull requests and pushes to `main`. See the [evaluation report](docs/evaluation.md#code-quality-candidate) for candidate verification and the earlier browser results.
 
 ## Deployment
 
-### Primary: Vercel Same-Origin Production (`bom1`)
+### Vercel production and GitHub Actions
 
 1. [vercel.json](vercel.json) routes `/api/*` to [api/index.ts](api/index.ts) (`maxDuration: 30`) and serves `dist/client` with immutable asset caching and strict CSP headers (`default-src 'self'; script-src 'self'`).
 2. Configure optional server-only environment variables (`OPENAQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_DAILY_LIMIT`) in Vercel Project Settings (**never** expose secrets with `VITE_*`).
-3. [vercel.yml](.github/workflows/vercel.yml) runs `npm ci`, `npm run lint`, `npm run check`, `npm run test:coverage`, `npm run build`, and `npm run test:e2e` on every PR and push to `main`, and deploys to Vercel when `vars.SAANS_VERCEL_DEPLOY == 'true'` followed by `node scripts/smoke.mjs`.
+3. [The GitHub Actions workflow](.github/workflows/vercel.yml) runs lint, TypeScript, coverage, builds, and browser tests on pull requests targeting `main` and pushes to `main`. With `SAANS_VERCEL_DEPLOY=true`, pull requests get a Vercel preview and pushes to `main` deploy to production. The production job runs `node scripts/smoke.mjs` against the deployment.
 4. Instant rollback is available via `npx vercel rollback` or the Vercel Dashboard.
-
-### Alternative Build Targets
-
-- **Node.js / Container**: `npm run build && npm start` or build using [Dockerfile](Dockerfile) (`node:22-alpine`, non-root `node` user on port `4173`).
-- **Cloudflare Workers**: `npm run build` compiles [src/server/worker.ts](src/server/worker.ts) and embedded static assets into `dist/worker.mjs`.
-- **Static Keyless Pages**: `npm run build:pages` emits a standalone static client that queries public Open-Meteo / India API feeds directly and runs the assistant in local Rules mode.
 
 ---
 
