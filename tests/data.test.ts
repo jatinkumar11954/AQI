@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CITIES, DEFAULT_PROFILE } from '../src/shared/model';
+import { CITIES, DEFAULT_PROFILE, EMPTY_ENV } from '../src/shared/model';
 import {
   askSaansAI,
   assistantBudgetMs,
@@ -7,10 +7,40 @@ import {
   readEnvironment,
   searchCities,
 } from '../src/client/data';
-import { modeled } from './fixtures';
+import { reconcileReadings } from '../src/client/use-air-readings';
+import { modeled, NOW } from './fixtures';
 
 const location = CITIES[0];
 const environmentPath = '/api/environment?lat=28.61&lon=77.21';
+
+describe('Air readings during a partial outage', () => {
+  const delhi = '28.61,77.21';
+
+  it('keeps stale air readings and fresh weather when the same city loses every air feed', () => {
+    const previous = modeled();
+    const weather = { time: NOW, temperature: 28, humidity: 60, wind: 7 };
+    const data = { ...EMPTY_ENV, weather };
+    const result = reconcileReadings({ location: delhi, data: previous, error: '' }, delhi, data);
+
+    expect(result).toEqual({
+      location: delhi,
+      data: { ...previous, airStatus: 'stale', india: undefined, weather },
+      error: 'Live air readings are temporarily unavailable.',
+    });
+  });
+
+  it('keeps the earlier city out of a weather-only response and clears the warning after recovery', () => {
+    const previous = modeled();
+    const pune = '18.52,73.86';
+    const data = { ...EMPTY_ENV, weather: previous.weather };
+    const result = reconcileReadings({ location: delhi, data: previous, error: '' }, pune, data);
+
+    expect(result).toEqual({ location: pune, data, error: '' });
+    const recovered = modeled();
+    expect(reconcileReadings({ ...result, error: 'Live air readings are temporarily unavailable.' }, pune, recovered))
+      .toEqual({ location: pune, data: recovered, error: '' });
+  });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();

@@ -215,13 +215,23 @@ test('communicates a slow air-data request and recovers without replacing househ
   await expect(page.getByLabel('Household budget')).toHaveValue('low');
 });
 
-for (const status of [200, 503]) test(`retains the earlier model through a ${status} outage and recovers on retry`, async ({ page }) => {
+for (const { label, status, weatherOnly } of [
+  { label: 'empty response', status: 200, weatherOnly: false },
+  { label: 'weather-only response', status: 200, weatherOnly: true },
+  { label: 'gateway failure', status: 503, weatherOnly: false },
+]) test(`retains the earlier model through a ${label} and recovers on retry`, async ({ page }) => {
   let outage = false;
   let requestCount = 0;
   await page.route('**/api/environment?*', async route => {
     requestCount++;
     if (!outage) return route.fulfill({ json: modeled(currentTime()) });
-    const json = status === 200 ? { ...EMPTY_ENV, stationStatus: 'unavailable' } : { error: { message: 'Air data is temporarily unavailable.' } };
+    const json = status === 200
+      ? {
+        ...EMPTY_ENV,
+        stationStatus: 'unavailable',
+        weather: weatherOnly ? { time: currentTime(), temperature: 28, humidity: 60, wind: 7 } : null,
+      }
+      : { error: { message: 'Air data is temporarily unavailable.' } };
     return route.fulfill({ status, json });
   });
 
@@ -234,6 +244,7 @@ for (const status of [200, 503]) test(`retains the earlier model through a ${sta
   await expect(page.getByText('Earlier model', { exact: true })).toBeVisible();
   await expect(page.getByText('Forecast may be stale. Activity planning is paused.')).toBeVisible();
   await expect(page.locator('.readout strong')).toHaveText('82');
+  if (weatherOnly) await expect(page.locator('.weather-grid')).toContainText('28 °C');
   expect(requestCount).toBe(status === 200 ? 2 : 3);
 
   outage = false;

@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { createApp } from '../src/server/app';
 import { createCache, createTransport } from '../src/shared/upstream';
 import { DEFAULT_PROFILE, HOUR } from '../src/shared/model';
+import { findWindows } from '../src/shared/planner';
 import { NOW, providerAir, relayPayload } from './fixtures';
 
 const coords = { lat: 28.61, lon: 77.21 };
@@ -42,13 +43,13 @@ it('coalesces the three feeds and preserves station sub-index provenance', async
   expect(fetcher).toHaveBeenCalledTimes(3);
 });
 
-it('reads OpenAQ mass sensors by ID, rejects unknown and future values', async () => {
+it('reads eligible OpenAQ sensors and preserves the independent CPCB caution', async () => {
   const utc = new Date((NOW - 900) * 1000).toISOString();
   const fetcher = vi.fn(async (target: URL, init?: RequestInit) => {
     if (target.hostname !== 'api.openaq.org') return baseFeed(target);
     expect(new Headers(init?.headers).get('X-API-Key')).toBe('test-key');
     if (target.pathname.endsWith('/latest')) return json({ results: [
-      { sensorsId: 62, value: 81, datetime: { utc } },
+      { sensorsId: 62, value: 10, datetime: { utc } },
       { sensorsId: 65, value: 912, datetime: { utc } },
       { sensorsId: 61, value: 163, datetime: { utc: new Date((NOW + HOUR) * 1000).toISOString() } },
     ] });
@@ -60,8 +61,11 @@ it('reads OpenAQ mass sensors by ID, rejects unknown and future values', async (
   });
   const app = createApp({ fetcher, clock: () => NOW });
   const reply = await (await app.request(envPath, undefined, { OPENAQ_API_KEY: 'test-key' })).json();
-  expect(reply.station).toMatchObject({ kind: 'openaq', id: 8, pm25: { value: 81 }, pm10: null });
+  expect(reply.station).toMatchObject({ kind: 'openaq', id: 8, pm25: { value: 10 }, pm10: null });
   expect(reply.india).toMatchObject({ status: 'fresh', station: { kind: 'cpcb-relay', aqi: 123 } });
+  const profile = { ...DEFAULT_PROFILE, work: 'flexible' as const };
+  expect(findWindows({ ...reply, india: undefined }, profile, NOW).usable).not.toBeNull();
+  expect(findWindows(reply, profile, NOW).usable).toBeNull();
   expect(fetcher.mock.calls.some(([target]) => target.hostname === 'api.dharun.dev')).toBe(true);
 });
 

@@ -15,10 +15,17 @@ function markStale(data: Environment): Environment {
   };
 }
 
-function applyEmptyResponse(previous: Readings, location: string, data: Environment): Readings {
+/** Keeps the last air readings during an outage, scoped to the current location. */
+export function reconcileReadings(previous: Readings, location: string, data: Environment): Readings {
+  if (data.air || data.station || data.india) return { location, data, error: '' };
+
   const earlier = previous.location === location ? previous.data : null;
   if (earlier && (earlier.air || earlier.station || earlier.india)) {
-    return { location, data: markStale(earlier), error: 'Live air readings are temporarily unavailable.' };
+    return {
+      location,
+      data: { ...markStale(earlier), weather: data.weather },
+      error: 'Live air readings are temporarily unavailable.',
+    };
   }
   return { location, data, error: '' };
 }
@@ -60,10 +67,7 @@ export function useAirReadings(city: City) {
       try {
         const data = await readEnvironment({ lat, lon }, AbortSignal.any([request.signal, timeout]));
         if (request.signal.aborted) return;
-        const hasAnyFeed = Boolean(data.air || data.station || data.india || data.weather);
-        setReadings(previous =>
-          hasAnyFeed ? { location, data, error: '' } : applyEmptyResponse(previous, location, data),
-        );
+        setReadings(previous => reconcileReadings(previous, location, data));
       } catch (cause) {
         if (request.signal.aborted) return;
         const error = timeout.aborted

@@ -211,7 +211,7 @@ node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, re
 ### Verification results
 
 - Strict TypeScript, zero-warning lint, and the production build passed.
-- The candidate passed **98 unit and API tests** with **100% line coverage** and **99.80% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
+- The candidate passed **100 unit and API tests** with **100% line coverage** and **99.80% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
 - The CI workflow runs desktop and mobile Chromium journeys and axe checks on pull requests and pushes to `main`. See the [evaluation report](docs/evaluation.md#code-quality-candidate) for candidate verification and the earlier browser results.
 
 ## Deployment
@@ -220,7 +220,7 @@ node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, re
 
 1. [vercel.json](vercel.json) routes `/api/*` to [api/index.ts](api/index.ts) (`maxDuration: 30`) and serves `dist/client` with immutable asset caching and strict CSP headers (`default-src 'self'; script-src 'self'`).
 2. Configure optional server-only environment variables (`OPENAQ_API_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_DAILY_LIMIT`) in Vercel Project Settings (**never** expose secrets with `VITE_*`).
-3. [The GitHub Actions workflow](.github/workflows/vercel.yml) runs lint, TypeScript, coverage, builds, and browser tests on pull requests targeting `main` and pushes to `main`. With `SAANS_VERCEL_DEPLOY=true`, pull requests get a Vercel preview and pushes to `main` deploy to production. The production job runs `node scripts/smoke.mjs` against the deployment.
+3. [The GitHub Actions workflow](.github/workflows/vercel.yml) runs lint, TypeScript, coverage, builds, and browser tests on pull requests targeting `main` and pushes to `main`. With `SAANS_VERCEL_DEPLOY=true`, pull requests get a Vercel preview and pushes to `main` deploy to production. After a successful production deploy, the workflow checks the public app. Set the optional GitHub Actions variable `SAANS_PRODUCTION_URL` if the production domain changes.
 4. Instant rollback is available via `npx vercel rollback` or the Vercel Dashboard.
 
 ---

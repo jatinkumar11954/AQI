@@ -53,9 +53,8 @@ jobs:
         if: github.event_name == 'pull_request'
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy preview to Vercel
-        id: deploy_preview
         if: github.event_name == 'pull_request'
-        run: echo "url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
       - name: Pull Vercel environment (production)
         if: github.event_name != 'pull_request'
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
@@ -63,15 +62,10 @@ jobs:
         if: github.event_name != 'pull_request'
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
       - name: Deploy production to Vercel
-        id: deploy_prod
         if: github.event_name != 'pull_request'
-        run: |
-          log=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tee /dev/stderr)
-          alias_url=$(printf '%s\n' "$log" | grep 'Aliased' | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)
-          deploy_url=$(printf '%s\n' "$log" | grep 'Production' | grep -Eo 'https://[^[:space:]]+' | tail -n 1 || true)
-          echo "url=${alias_url:-$deploy_url}" >> "$GITHUB_OUTPUT"
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
       - name: Smoke test deployed Vercel instance
         if: github.event_name != 'pull_request'
         env:
-          DEPLOY_URL: ${{ steps.deploy_prod.outputs.url }}
+          DEPLOY_URL: ${{ vars.SAANS_PRODUCTION_URL || 'https://aqi-tau.vercel.app' }}
         run: node scripts/smoke.mjs "$DEPLOY_URL"
