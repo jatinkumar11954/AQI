@@ -155,7 +155,7 @@ All routes are documented in full in [docs/api.md](docs/api.md). Production requ
 - **Origin & payload controls**: `/api/ask` validates exact origin equality (same-origin, dev origin, or validated HTTPS `SAANS_PUBLIC_ORIGIN`), rejects non-JSON `Content-Type` (`415`), caps request bodies at `4096` bytes (`413`), and validates every field with strict Zod schemas.
 - **Upstream protection**: Fixed HTTPS provider URLs (`redirect: 'error'`), `256 KiB` streaming response cap (`MAX_PROVIDER_BYTES`), bounded in-memory caches (`maxKeys: 384` / `96`) with single-flight coalescing, and per-IP + per-provider fixed-window rate limits (`Retry-After: 60`).
 - **Gemini privacy boundary**: Questions matching common email, phone, or personal address/name disclosures (`identifier` pattern) are intercepted locally and answered in `privacy` rules mode without calling Gemini. Gemini receives the question and a limited set of household and air-quality fields. See the [API contract](docs/api.md).
-- **Browser storage**: City, household settings, language toggle, and daily checklists stay locally in the user's browser and are validated on read with Zod.
+- **Browser storage**: SaansAI saves city, household settings, language, and checklists in the browser and validates them on read. Assistant requests send the question, selected coordinates, and household settings to the same-origin API.
 
 ---
 
@@ -211,7 +211,7 @@ node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, re
 ### Verification results
 
 - Strict TypeScript, zero-warning lint, and the production build passed.
-- The candidate passed **95 unit and API tests** with **100% line coverage** and **99.80% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
+- The candidate passed **97 unit and API tests** with **100% line coverage** and **99.79% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
 - The CI workflow runs desktop and mobile Chromium journeys and axe checks on pull requests and pushes to `main`. See the [evaluation report](docs/evaluation.md#code-quality-candidate) for candidate verification and the earlier browser results.
 
 ## Deployment

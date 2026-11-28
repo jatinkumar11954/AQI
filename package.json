@@ -9,7 +9,6 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx src/server/index.ts --dev",
     "build": "vite build && esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.mjs && node scripts/build-worker.mjs",
-    "build:pages": "vite build --mode pages",
     "start": "node --env-file-if-exists=.env dist/server.mjs",
     "lint": "oxlint --deny-warnings && eslint . --max-warnings 0",
     "check": "tsc --noEmit",

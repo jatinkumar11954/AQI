@@ -113,7 +113,7 @@ export function Assistant({ city, profile, hindi, env }: { city: City; profile: 
         </div>
         <div className={pending ? 'empty' : 'sr-only'}>
           <p role="status">
-            {pending && (slow ? 'Still waiting for the assistant. The service can take longer after being idle.' : 'Checking your context…')}
+            {pending && (slow ? 'Still waiting for the assistant.' : 'Checking your context…')}
           </p>
           {pending && (
             <button className="button mt-2" type="button" onClick={cancel}>

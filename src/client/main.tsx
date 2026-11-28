@@ -72,7 +72,7 @@ function App() {
   const unavailable = !refreshing && env.airStatus === 'unavailable' && !env.station;
   const readingIssue = error || (unavailable ? 'Live air readings are temporarily unavailable.' : '');
   const readingStatus = slow
-    ? 'Still connecting to the air data service. It may take about a minute after an idle period.'
+    ? 'Still connecting to the air data service.'
     : readingIssue && `${readingIssue} ${env.air || env.station || env.india ? 'Showing the last data from this visit.' : 'General guidance is still available.'}`;
 
   return (

@@ -14,7 +14,7 @@ SaansAI runs on Vercel in Mumbai (`bom1`). The React app and Hono API share the 
 | High | Incorrect origin handling can reject valid assistant requests or accept a request from an unrelated site. | Vercel serves the app and `POST /api/ask` on the same origin. Tests cover accepted same-origin requests, rejected unrelated origins, and per-client rate limits through the Vercel handler. |
 | Medium | The landing page prioritized metrics and left personalization buried in navigation. | Lead with household actions and a direct planner link. Explain trade-offs in the planner and budget tiers. Playwright follows this path while a forecast is loading. |
 | Medium | Chrome reported a CSP violation caused by a runtime validation optimization probing dynamic evaluation. | Configure Zod for its supported jitless mode. The CSP retains its existing prohibition on dynamic script evaluation. |
-| Medium | The shared client loaded secondary views and fallback provider code before most users needed them. | Split secondary views and keyless providers, downsize the skyline, skip background auto-refresh, and keep provider caches bounded. Initial JS fell from about 113.08 to 109.13 kB gzip locally. The skyline went from 72.22 to 42.38 kB. |
+| Medium | The shared client loaded secondary views and provider code before most users needed them. | Load secondary views on demand and use the same-origin API for provider requests. The skyline asset was reduced from 72.22 to 42.38 kB. |
 | Medium | Earlier releases had mobile overflow, transient navigation contrast, and a forecast-hour shift overlap bug. | The earlier remediation preserved a single mobile column, stable contrast and complete forecast-hour interval checks. These paths remain covered by browser and domain tests. |
 
 ## Earlier local verification
@@ -58,14 +58,14 @@ TypeScript, the production build, and the dependency audit ran with the locked d
 
 On 28 November 2026 IST, the reported Hack2skill Attempt 2 score was **97.12/100**. Code Quality was **89**, Security was **99**, and Efficiency, Testing, Accessibility and Problem Statement Alignment were each **100**. Hack2skill has yet to score this candidate.
 
-The changes build on `41a7be0`. [Planner rules](../src/shared/planner.ts) expose named actions and the outdoor AQI ceiling used by both the rules and UI. [Shared guidance](../src/shared/guidance.ts) owns the reviewed catalog and checklist order. The assistant selects guidance by topic without constructing the whole checklist. The client uses a single navigation table, and profile identity derives from the validation schema. CI lint checks React hook usage, effect dependencies and warnings.
+The changes build on `41a7be0`. [Planner rules](../src/shared/planner.ts) expose named actions and the outdoor AQI ceiling used by both the rules and UI. [Shared guidance](../src/shared/guidance.ts) owns the reviewed catalog and checklist order. The assistant selects guidance by topic without constructing the whole checklist. The client uses a single navigation table, and the validation schemas define profile identity and budget tiers. The browser uses one [same-origin API client](../src/client/data.ts), and CI lint checks React hook usage, effect dependencies and warnings.
 
 | Check | Local result |
 |---|---|
 | TypeScript, lint and builds | Passed strict type checking, zero-warning lint, and the production build. A clean offline `npm ci` passed using the cached packages. |
-| Unit and API tests | 95/95 passed. The nine configured modules reached 100% lines, statements and functions, and 99.80% branches. |
+| Unit and API tests | 97/97 passed. The nine configured modules reached 100% lines, statements and functions, and 99.79% branches. The client tests cover partial responses, retry limits, cancellation, assistant timeouts and validation. |
 | Behavior comparison with `6528cfb` | 3,360 fixture comparisons matched for planner, checklist, ventilation and assistant outputs across household profiles, air conditions and languages. Twelve API scenarios matched in status, headers and JSON. |
-| Production assets | Vite reported the initial production JavaScript at 109.83 kB gzip versus 111.54 kB. The guidance catalog loads with the views that use it. The compiled production CSS was byte-identical. |
+| Production assets | Vite reported the initial production JavaScript at 109.80 kB gzip versus 111.89 kB at `41a7be0`. The guidance catalog loads with the views that use it. The compiled CSS and HTML Content Security Policy matched `41a7be0` byte-for-byte. |
 | Browser, accessibility and advisory checks | The local browser suite could not start because the workspace denied loopback binding. A current npm advisory check could not reach the registry. The browser and axe results above apply to the earlier release. |
 
 ## Remaining limitations

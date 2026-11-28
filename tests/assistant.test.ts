@@ -59,6 +59,13 @@ describe('assistant topic inference and deterministic wording', () => {
     expect(answer.sources).toEqual([source]);
   });
 
+  it('uses the child-specific checklist guidance for a family question', () => {
+    const profile = { ...DEFAULT_PROFILE, children: true };
+    const answer = composeAnswer('family', profile, EMPTY_ENV, NOW, 'en');
+    expect(answer.text).toContain('Check school or local advisories.');
+    expect(answer.sources).toEqual(['activity']);
+  });
+
   it('cites the sources for an English AQI question and keeps off-topic guidance scoped', () => {
     const sources = composeAnswer('sources', DEFAULT_PROFILE, sampleEnv(), NOW, 'en');
     expect(sources.text).toMatch(/^The forecast uses the Open-Meteo CAMS US AQI\./);

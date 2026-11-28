@@ -8,7 +8,6 @@ const port = Number(process.env.PORT || '4173');
 const dev = process.argv.includes('--dev');
 const api = createApp({
   developmentOrigin: dev ? 'http://127.0.0.1:' + port : undefined,
-  publicServiceOrigin: process.env.RENDER_EXTERNAL_URL,
 });
 const keys = {
   OPENAQ_API_KEY: process.env.OPENAQ_API_KEY,

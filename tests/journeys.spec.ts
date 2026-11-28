@@ -191,7 +191,7 @@ test('keeps the mobile header in place while a secondary view loads', async ({ p
   }
 });
 
-test('communicates a cold start and recovers without replacing household choices', async ({ page }) => {
+test('communicates a slow air-data request and recovers without replacing household choices', async ({ page }) => {
   let release!: () => void;
   const waiting = new Promise<void>(resolve => { release = resolve; });
   let started = false;

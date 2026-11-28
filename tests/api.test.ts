@@ -209,8 +209,8 @@ it('invokes the default runtime fetch with its global receiver', async () => {
   }
 });
 
-it('allows the configured Pages origin and rejects cross-origin requests from other sites', async () => {
-  const origin = 'https://project-owner.github.io';
+it('allows the configured HTTPS origin and rejects cross-origin requests from other sites', async () => {
+  const origin = 'https://trusted.example';
   const runtime = { SAANS_PUBLIC_ORIGIN: origin };
   const app = createApp({ fetcher: async target => baseFeed(target), clock: () => NOW });
   const preflight = (caller: string) => app.request('/api/ask', {
@@ -221,8 +221,8 @@ it('allows the configured Pages origin and rejects cross-origin requests from ot
   expect(allowed.status).toBe(204);
   expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe(origin);
   expect(allowed.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type');
-  expect((await preflight('https://other.github.io')).status).toBe(403);
-  const bad = await app.request('/api/ask', post(question, { origin: 'https://other.github.io' }), runtime);
+  expect((await preflight('https://unrelated.example')).status).toBe(403);
+  const bad = await app.request('/api/ask', post(question, { origin: 'https://unrelated.example' }), runtime);
   expect(bad.status).toBe(403);
   expect(bad.headers.get('Access-Control-Allow-Origin')).toBeNull();
   const response = await app.request('/api/ask', post(question, { origin }), runtime);
@@ -241,14 +241,14 @@ it('accepts the local Vite origin only when explicitly configured by the dev ser
   expect((await production.request(url, post(question, { origin }))).status).toBe(403);
 });
 
-it('accepts the Render service origin behind TLS termination without opening CORS', async () => {
-  const origin = 'https://service.onrender.com';
-  const url = 'http://service.onrender.com/api/ask';
+it('accepts the configured public service origin behind TLS termination without opening CORS', async () => {
+  const origin = 'https://service.example';
+  const url = 'http://service.example/api/ask';
   const app = createApp({ fetcher: async target => baseFeed(target), clock: () => NOW, publicServiceOrigin: origin });
   const response = await app.request(url, post(question, { origin }));
   expect(response.status).toBe(200);
   expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
-  expect((await app.request(url, post(question, { origin: 'https://other.onrender.com' }))).status).toBe(403);
+  expect((await app.request(url, post(question, { origin: 'https://unrelated.example' }))).status).toBe(403);
 });
 
 it('prefers an active OpenAQ monitor over a closer inactive record', async () => {
@@ -278,10 +278,10 @@ it('keeps readiness independent of providers and reports invalid public origin c
   const fetcher = vi.fn(async () => json({}, 503));
   const app = createApp({ fetcher });
   expect(await (await app.request('/api/health')).json()).toEqual({ status: 'ok' });
-  const ready = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://example.github.io' });
+  const ready = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://trusted.example' });
   expect(ready.status).toBe(200);
   expect(await ready.json()).toEqual({ status: 'ready' });
-  const invalid = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://example.github.io/AQI/' });
+  const invalid = await app.request('/api/ready', undefined, { SAANS_PUBLIC_ORIGIN: 'https://trusted.example/path/' });
   expect(invalid.status).toBe(503);
   expect(await invalid.json()).toEqual({ status: 'not_ready' });
   expect(fetcher).not.toHaveBeenCalled();
