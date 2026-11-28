@@ -195,6 +195,8 @@ it('keeps questions containing email, phone, PAN, or address details out of Gemi
     'Should I open windows? name@example.org',
     'My number is +91 98765 43210. Can I walk?',
     'My PAN is ABCDE1234F, should I wear a mask?',
+    'Should I open my windows? Synthetic placeholder zzzzz0000z.',
+    'Should I open my windows? Synthetic placeholder ZzZzZ0000z.',
     'Is air clean near Flat No. 4B today?',
   ]) {
     const answer = await assistant(question, DEFAULT_PROFILE, sampleEnv(), 'en', { GEMINI_API_KEY: 'test' });
