@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { dailyActions, INDOOR, SUSTAINABLE } from '../src/shared/guidance';
 import { httpsOrigin } from '../src/shared/deployment';
 import { CITIES, DEFAULT_PROFILE, EMPTY_ENV, HOUR, SOURCES, profileKey, sameProfile, type Environment, type Profile } from '../src/shared/model';
 import {
-  dailyActions,
   dateKey,
   findWindows,
   freshAir,
   futureHours,
-  INDOOR,
   localHour,
   modelNow,
   nearbyParticleCaution,
   risk,
-  SUSTAINABLE,
   ventilation,
 } from '../src/shared/planner';
 
@@ -213,6 +211,12 @@ describe('ventilation, dailyActions, and catalog sources', () => {
       expect(action.hindi?.length).toBeGreaterThan(5);
     }
     expect(CITIES.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('keeps the daily checklist IDs in order and explains missing model readings', () => {
+    const actions = dailyActions(EMPTY_ENV, DEFAULT_PROFILE, MIDNIGHT_IST);
+    expect(actions.map(action => action.id)).toEqual(['outdoor', 'commute', 'family', 'ventilation']);
+    expect(actions[0].reason).toBe('Current model data is missing or too old to use.');
   });
 
   it('tailors family guidance copy separately for older adults vs children', () => {

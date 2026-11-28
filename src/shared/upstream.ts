@@ -60,7 +60,7 @@ export const url = (base: string, params: Record<string, string | number>) => {
   return target;
 };
 
-/** Creates a bounded LRU-evicting in-memory cache with request coalescing and stale-on-error fallback. */
+/** Creates a bounded in-memory cache that evicts the oldest stored entry with request coalescing and stale-on-error fallback. */
 export function createCache<T>(maxKeys: number, ttl: number, staleTtl: number, clock: () => number) {
   const data = new Map<string, { value: T; at: number }>();
   const active = new Map<string, Promise<{ value: T; stale: boolean }>>();
@@ -92,7 +92,7 @@ export function createCache<T>(maxKeys: number, ttl: number, staleTtl: number, c
   };
 }
 
-/** Creates a sliding fixed-window in-memory rate limiter with a bounded tracked-key table. */
+/** Creates a fixed-window in-memory rate limiter with a bounded tracked-key table. */
 export function createLimiter(clock: () => number, seconds = 60) {
   let reset = 0;
   const counts = new Map<string, number>();

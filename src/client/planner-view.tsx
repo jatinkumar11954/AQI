@@ -1,7 +1,8 @@
 import { CalendarDays, Check, ShieldCheck, UsersRound } from 'lucide-react';
 import { z } from 'zod';
 import { PROFILES, sameProfile, type City, type Profile } from '../shared/model';
-import { dailyActions, formatDate } from '../shared/planner';
+import { dailyActions } from '../shared/guidance';
+import { formatDate } from '../shared/planner';
 import { ActionText, BUDGET_TIERS, budgetNames, type GuidanceContext } from './action-text';
 import { CleanerWindow } from './overview';
 import { CardTitle } from './ui';

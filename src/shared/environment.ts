@@ -196,7 +196,8 @@ async function fetchOpenAQStation(
     if (datetimeLast === null) return [];
     if (datetimeLast !== undefined) {
       const last = Date.parse(datetimeLast.utc) / 1000;
-      if (last < lookupTime - OBSERVATION_MAX_AGE || last > lookupTime + 300) return [];
+      const recent = last >= lookupTime - OBSERVATION_MAX_AGE && last <= lookupTime + 300;
+      if (!recent) return [];
     }
     return [{ ...location, distance }];
   }).sort((a, b) => a.distance - b.distance);

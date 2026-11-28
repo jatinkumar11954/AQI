@@ -1,6 +1,6 @@
 # SaansAI — Urban Air Quality Assistant
 
-**SaansAI** helps Indian households decide what to do when outdoor air pollution rises. Start immediately on the live app at **[aqi-tau.vercel.app](https://aqi-tau.vercel.app/)**, choose an Indian city or neighbourhood, or load a sample household profile. No user account or client-side API key is required.
+**SaansAI** helps Indian households decide what to do when outdoor air pollution rises. Start immediately on the live app at **[aqi-tau.vercel.app](https://aqi-tau.vercel.app/)**, choose an Indian city or neighbourhood, or load a sample household profile. No user account or client-side API key is required. [Public GitHub repository](https://github.com/jatinkumar11954/AQI)
 
 Built for **PromptWars Virtual Challenge 06 (Urban Air Quality Assistant)**, SaansAI pairs real-time regional modeling and nearby ground-station observations with household-specific schedules, source-separated risk screens, explainable impact projections, and a strictly grounded Gemini assistant.
 
@@ -40,7 +40,7 @@ SaansAI runs as a same-origin React + TypeScript frontend backed by a strict Hon
 ```mermaid
 flowchart LR
   USER["Household Browser (IST)"] --> CLIENT["Vercel CDN · React 19 + TypeScript (Lazy Views)"]
-  CLIENT -->|"Client-side rules & persistence (localStorage + Zod)"| SHARED["src/shared · Planner, Impact & Assistant Catalog"]
+  CLIENT -->|"Client-side rules & persistence (localStorage + Zod)"| SHARED["src/shared · Planner, Impact & Guidance"]
   CLIENT -->|"Same-origin HTTPS · /api/*"| API["Vercel bom1 · Hono API (api/index.ts)"]
   API --> GUARD["Validation (Zod jitless) · Size Cap (4 KiB) · CORS & Rate Limits"]
   GUARD --> CACHE["Bounded Per-Instance Caches & Coalescing (src/shared/upstream.ts)"]
@@ -98,10 +98,11 @@ flowchart LR
 │   └── shared/
 │       ├── model.ts             # Zod schemas, approved SOURCES registry, city presets & profile identity helpers
 │       ├── environment.ts       # Multi-provider fetching, response validation, caching & station reconciliation
-│       ├── planner.ts           # Risk tiers, window selection, safety vetoes, indoor & daily action rules
+│       ├── planner.ts           # Risk tiers, outdoor windows, caution thresholds, and Today actions
+│       ├── guidance.ts          # Reviewed indoor and travel actions, family guidance, and daily checklist
 │       ├── impact.ts            # Petrol tailpipe CO₂, spend delta & outdoor PM2.5 exposure formulas
 │       ├── assistant.ts         # Deterministic topic inference & grounded bilingual answer composer
-│       ├── upstream.ts          # 256 KiB bounded JSON transport, LRU cache w/ coalescing & rate limiter
+│       ├── upstream.ts          # 256 KiB bounded JSON transport, cache with request coalescing & rate limiter
 │       └── deployment.ts        # Approved HTTPS data-origin allowlist & strict origin URL validator
 ├── tests/                       # Vitest unit/API integration tests & Playwright desktop/mobile E2E + axe specs
 ├── .oxlintrc.json               # Oxlint TypeScript/React correctness & strict cast rules
@@ -119,7 +120,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | **Open-Meteo Air Quality (CAMS)** | Current & 3-day hourly `us_aqi`, `pm2_5`, `pm10` (~45 km grid) | `480s` / `3h` | Marked stale if fetched `>1h` ago, current snapshot `>2h` old, or missing upcoming hours; disables timed outdoor windows when stale or missing. |
 | **Open-Meteo Weather** | Current `temperature_2m`, `relative_humidity_2m`, `wind_speed_10m` | `720s` / `2h` | Required alongside fresh model air and comfort bounds (`18–32 °C`) to recommend window opening. |
-| **Open-Meteo Geocoding** | India (`IN`) city & neighbourhood coordinate lookup | `3600s` / `24h` | Rejects PIN codes (`2–64` char city/neighbourhood queries only) and deduplicates locality/state pairs. |
+| **Open-Meteo Geocoding** | India (`IN`) city & neighbourhood coordinate lookup | `3600s` / `24h` | Accepts `2–64` character searches and deduplicates locality/state pairs. |
 | **India API (CPCB relay)** | Nearest CPCB station within `25 km` (`aqi`, `PM2.5` & `PM10` sub-indices) | `600s` / `12h` | Prefers fresh (`<= 3h`, `OBSERVATION_MAX_AGE`) stations over closer stale stations; timestamps anchored to `+05:30` IST. |
 | **OpenAQ v3** *(optional server key)* | Latest measured `pm25` / `pm10` mass concentrations (`µg/m³`) within `25 km` | `900s` / `12h` | Never converted into an AQI number; used alongside `india` relay data so neither feed hides the other. |
 | **Google Gemini** *(optional server key)* | `1–2` validated topic IDs classified at `temperature: 0` | `300s` / `0s` | Cached by SHA-256 hash of normalized question + minimal context; falls back automatically to deterministic `rules` mode on missing key, privacy hit, 429 cooldown, or timeout. |
@@ -152,8 +153,8 @@ All routes are documented in full in [docs/api.md](docs/api.md). Production requ
 
 - **Server-only credentials**: `OPENAQ_API_KEY` and `GEMINI_API_KEY` remain exclusively in server environment variables; no `VITE_*` secret prefixes are used.
 - **Origin & payload controls**: `/api/ask` validates exact origin equality (same-origin, dev origin, or validated HTTPS `SAANS_PUBLIC_ORIGIN`), rejects non-JSON `Content-Type` (`415`), caps request bodies at `4096` bytes (`413`), and validates every field with strict Zod schemas.
-- **Upstream protection**: Fixed HTTPS provider URLs (`redirect: 'error'`), `256 KiB` streaming response cap (`MAX_PROVIDER_BYTES`), bounded `Map` LRU caches (`maxKeys: 384` / `96`) with single-flight coalescing, and per-IP + per-provider fixed-window rate limits (`Retry-After: 60`).
-- **Gemini privacy boundary**: Questions matching common email, phone, or personal address/name disclosures (`identifier` pattern) are intercepted locally and answered in `privacy` rules mode without calling Gemini. Only de-identified booleans/enums and two AQI scalars enter `<facts>`.
+- **Upstream protection**: Fixed HTTPS provider URLs (`redirect: 'error'`), `256 KiB` streaming response cap (`MAX_PROVIDER_BYTES`), bounded in-memory caches (`maxKeys: 384` / `96`) with single-flight coalescing, and per-IP + per-provider fixed-window rate limits (`Retry-After: 60`).
+- **Gemini privacy boundary**: Questions matching common email, phone, or personal address/name disclosures (`identifier` pattern) are intercepted locally and answered in `privacy` rules mode without calling Gemini. Gemini receives the question and a limited set of household and air-quality fields. See the [API contract](docs/api.md).
 - **Browser storage**: City, household settings, language toggle, and daily checklists stay locally in the user's browser and are validated on read with Zod.
 
 ---
@@ -208,14 +209,11 @@ npm run test:e2e       # Run Desktop + Mobile Chromium user journeys and axe-cor
 node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, readiness, CSP, and 6-city telemetry
 ```
 
-### Verified Quality Baseline
+### Verification results
 
-- **Linter & Strict TypeScript (`.oxlintrc.json`, `eslint.config.mjs`, `tsconfig.json`)**: `npm run lint` (`Oxlint` + `ESLint`) and `npm run check` (`strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`) pass with zero warnings/errors and enforce zero `!` non-null assertions or `any` types in `src/` and `api/`.
-- **Unit & API Integration Tests (`tests/*.test.ts`)**: `91` tests across `7` test files pass, covering planner scheduling and caution rules, OpenAQ/CPCB reconciliation, stale/partial outages, impact formulas, Gemini topic routing, PII/origin/rate-limit enforcement, malformed payloads, fetch timeouts, profile identity helpers, and origin validation.
-- **V8 Code Coverage (`vitest.config.ts`)**: **100% lines**, **100% functions**, **100% statements**, **99.8% branches** across configured shared, server, and data-client modules.
-- **Playwright E2E & Accessibility (`tests/*.spec.ts`)**: `34` tests across Desktop Chrome and Mobile Pixel 7 viewports pass, including cold-start recovery, superseded search aborting, Hindi toggle, keyboard focus management, 320px horizontal table scrolling, and zero `@axe-core/playwright` violations across all five views and the location modal.
-
----
+- Strict TypeScript, zero-warning lint, and the production and static Pages builds passed.
+- The candidate passed **95 unit and API tests** with **100% line coverage** and **99.80% branch coverage** across the modules configured in [vitest.config.ts](vitest.config.ts).
+- The CI workflow runs desktop and mobile Chromium journeys and axe checks on pull requests and pushes to `main`. See the [evaluation report](docs/evaluation.md#code-quality-candidate) for candidate verification and the earlier browser results.
 
 ## Deployment
 
@@ -247,8 +245,9 @@ node scripts/smoke.mjs https://aqi-tau.vercel.app  # Smoke check live health, re
 - [Screen Recording & Evaluator Samples](docs/demo.md) — Reproducible test scenarios across sample households
 - [LinkedIn Project Summary](docs/linkedin-draft.md) — Public launch notes
 
-### Known Limitations
+### Assumptions and limitations
 
 - **Spatial resolution & official indices**: Regional CAMS forecasts (~45 km grid) and nearby monitors cannot capture hyper-local indoor or street-level exposure; users should always verify with official CPCB AQI advisories.
+- **Simulator estimates** use editable fuel, fares and trip inputs. The CO₂ calculation covers petrol tailpipe emissions. The outdoor exposure proxy multiplies a modeled hourly PM2.5 concentration by time outdoors. See the [calculation assumptions](docs/methodology.md).
 - **In-memory instance limits**: Per-instance rate limiters (`createLimiter`) and response caches (`createCache`) reset across serverless cold starts or horizontal instance scaling.
 - **Assistive scope**: Axe checks validate WCAG 2.0/2.1/2.2 A/AA rules in Chromium; full manual screen-reader evaluation across assistive hardware and additional Hindi translations remain partial.

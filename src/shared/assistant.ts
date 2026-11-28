@@ -1,5 +1,13 @@
-import { type Environment, type Profile, type SourceId } from './model.js';
-import { dailyActions, INDOOR, modelNow, risk, SUSTAINABLE, ventilation } from './planner.js';
+import { COMBINE_TRIPS_ACTION, COOKING_ACTION, budgetAction, familyAction } from './guidance.js';
+import type { Answer, Environment, Profile, SourceId } from './model.js';
+import {
+  commuteAction,
+  modelNow,
+  outdoorAction,
+  risk,
+  ventilation,
+  type Action,
+} from './planner.js';
 
 export const TOPICS = ['outdoors', 'commute', 'ventilation', 'cooking', 'filtration', 'family', 'impact', 'sources', 'unsupported'] as const;
 export type Topic = typeof TOPICS[number];
@@ -20,23 +28,29 @@ export function inferTopic(question: string): Topic {
   return rules.find(([, expression]) => expression.test(question))?.[0] ?? 'unsupported';
 }
 
+function topicAction(
+  topic: Exclude<Topic, 'sources' | 'unsupported'>,
+  profile: Profile,
+  env: Environment,
+  now: number,
+): Action {
+  switch (topic) {
+    case 'outdoors': return outdoorAction(env, profile, now);
+    case 'commute': return commuteAction(profile);
+    case 'family': return familyAction(profile);
+    case 'ventilation': return ventilation(env, profile, now);
+    case 'cooking': return COOKING_ACTION;
+    case 'filtration': return budgetAction(profile.budget);
+    case 'impact': return COMBINE_TRIPS_ACTION;
+  }
+}
+
 /** Builds a deterministic, rule-based grounded response for the selected topic and profile. */
-export function composeAnswer(topic: Topic, profile: Profile, env: Environment, now: number, language: 'en' | 'hi') {
-  const actions = dailyActions(env, profile, now);
+export function composeAnswer(topic: Topic, profile: Profile, env: Environment, now: number, language: 'en' | 'hi'): Pick<Answer, 'text' | 'context' | 'sources'> {
   const aqi = modelNow(env, now)?.aqi;
-  const links: SourceId[] = [];
   const context = aqi == null
     ? 'Current model AQI is unavailable for this answer.'
     : `Current modeled US AQI ${aqi} · ${risk(aqi).label}. Check CPCB for local official guidance.`;
-  const byTopic = {
-    outdoors: actions[0],
-    commute: actions[1],
-    family: actions[2],
-    ventilation: ventilation(env, profile, now),
-    cooking: INDOOR.zero[1],
-    filtration: INDOOR[profile.budget][0],
-    impact: SUSTAINABLE[0],
-  };
   if (topic === 'sources') {
     const prefix = language === 'hi'
       ? 'यहाँ मॉडल (US AQI) और स्टेशन के आँकड़े (OpenAQ और CPCB) अलग-अलग दिखाए गए हैं। '
@@ -53,11 +67,10 @@ export function composeAnswer(topic: Topic, profile: Profile, env: Environment, 
         ? 'मैं बाहर की गतिविधि, सफ़र, खिड़की, खाना पकाने या फ़िल्टर के बारे में मदद कर सकता हूँ।'
         : 'I can answer questions about outdoor timing, commuting, ventilation, cooking, filtration, household precautions or the petrol impact calculator.',
       context,
-      sources: links,
+      sources: [],
     };
   }
-  const action = byTopic[topic];
-  links.push(action.source);
+  const action = topicAction(topic, profile, env, now);
   const hindi = language === 'hi' && action.hindi ? action.hindi + ' ' : '';
-  return { text: hindi + action.body + ' ' + action.reason, context, sources: links };
+  return { text: hindi + action.body + ' ' + action.reason, context, sources: [action.source] };
 }

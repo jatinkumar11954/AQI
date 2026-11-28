@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: [
-        'src/shared/{assistant,environment,impact,planner,upstream}.ts',
+        'src/shared/{assistant,environment,guidance,impact,planner,upstream}.ts',
         'src/server/{app,gemini}.ts',
         'src/client/data.ts',
       ],

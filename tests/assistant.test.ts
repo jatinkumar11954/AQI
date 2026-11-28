@@ -49,6 +49,16 @@ describe('assistant topic inference and deterministic wording', () => {
     expect(unsupported.text).toContain('खिड़की');
   });
 
+  it.each([
+    ['outdoors', 'activity', 'An indoor alternative'],
+    ['filtration', 'clean', 'Keep tobacco smoke'],
+    ['impact', 'fuel', 'Group errands'],
+  ] as const)('selects the %s guidance and its citation directly', (topic, source, text) => {
+    const answer = composeAnswer(topic, DEFAULT_PROFILE, EMPTY_ENV, NOW, 'en');
+    expect(answer.text).toContain(text);
+    expect(answer.sources).toEqual([source]);
+  });
+
   it('cites the sources for an English AQI question and keeps off-topic guidance scoped', () => {
     const sources = composeAnswer('sources', DEFAULT_PROFILE, sampleEnv(), NOW, 'en');
     expect(sources.text).toMatch(/^The forecast uses the Open-Meteo CAMS US AQI\./);

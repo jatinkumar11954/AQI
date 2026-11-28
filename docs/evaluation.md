@@ -41,7 +41,7 @@ Each row is a single lab run on the live Vercel deployment. Cold `/api/ready` TT
 
 ## Challenge 06 quality pass
 
-28 November 2026 IST · Final candidate verified against the first quality pass (`6d376dd`). The last confirmed Hack2skill result is **96.62/100** from Attempt 1. The category scores are historical. The candidate evidence comes from local verification.
+28 November 2026 IST · Final candidate verified against the first quality pass (`6d376dd`). Hack2skill scored Attempt 1 at **96.62/100**. The category scores are historical. The candidate evidence comes from local verification.
 
 | Hack2skill category | Attempt 1 | Verified candidate evidence |
 |---|---:|---|
@@ -53,6 +53,20 @@ Each row is a single lab run on the live Vercel deployment. Cold `/api/ready` TT
 | Problem Statement Alignment | 100 | The browser journeys verify city-specific household planning, indoor guidance, sustainable alternatives, explainable travel and exposure estimates, and the cited assistant. See the [requirements matrix](requirements.md). |
 
 TypeScript, the production and Pages builds, and the dependency audit ran with the locked dependencies. The local browser suite starts by building the client and serving controlled provider fixtures. Assistive-technology usability and a revised Hack2skill score require separate evaluation.
+
+## Code Quality candidate
+
+On 28 November 2026 IST, the reported Hack2skill Attempt 2 score was **97.12/100**. Code Quality was **89**, Security was **99**, and Efficiency, Testing, Accessibility and Problem Statement Alignment were each **100**. Hack2skill has yet to score this candidate.
+
+The changes build on `41a7be0`. [Planner rules](../src/shared/planner.ts) expose named actions and the outdoor AQI ceiling used by both the rules and UI. [Shared guidance](../src/shared/guidance.ts) owns the reviewed catalog and checklist order. The assistant selects guidance by topic without constructing the whole checklist. The client uses a single navigation table, and profile identity derives from the validation schema. CI lint checks React hook usage, effect dependencies and warnings.
+
+| Check | Local result |
+|---|---|
+| TypeScript, lint and builds | Passed strict type checking, zero-warning lint, and the production client, Node, Worker and static Pages builds. A clean offline `npm ci` passed using the cached packages. |
+| Unit and API tests | 95/95 passed. The nine configured modules reached 100% lines, statements and functions, and 99.80% branches. |
+| Behavior comparison with `6528cfb` | 3,360 fixture comparisons matched for planner, checklist, ventilation and assistant outputs across household profiles, air conditions and languages. Twelve API scenarios matched in status, headers and JSON. |
+| Production assets | Vite reported the initial production JavaScript at 109.83 kB gzip versus 111.54 kB. The guidance catalog loads with the views that use it. The compiled production CSS was byte-identical. |
+| Browser, accessibility and advisory checks | The local browser suite could not start because the workspace denied loopback binding. A current npm advisory check could not reach the registry. The browser and axe results above apply to the earlier release. |
 
 ## Remaining limitations
 

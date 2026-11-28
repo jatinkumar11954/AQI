@@ -19,36 +19,39 @@ const Indoor = lazy(() => import('./indoor-view').then(({ Indoor }) => ({ defaul
 const Planner = lazy(() => import('./planner-view').then(({ Planner }) => ({ default: Planner })));
 
 const pages = [
-  { id: 'today', title: 'Today', icon: Compass },
-  { id: 'planner', title: 'Daily planner', icon: CalendarDays },
-  { id: 'indoor', title: 'Indoor air', icon: House },
-  { id: 'impact', title: 'Impact simulator', icon: ArrowDownUp },
-  { id: 'assistant', title: 'Ask SaansAI', icon: Sparkles },
+  {
+    id: 'today', title: 'Today', icon: Compass, heading: 'Your air plan today',
+    intro: 'What to do today, with local readings and forecasts to explain why.',
+  },
+  {
+    id: 'planner', title: 'Daily planner', icon: CalendarDays, heading: 'Plan your day',
+    intro: 'Build a routine around your household, work and local forecast.',
+  },
+  {
+    id: 'indoor', title: 'Indoor air', icon: House, heading: 'Make home air cleaner',
+    intro: 'Practical ways to reduce indoor pollution at every budget.',
+  },
+  {
+    id: 'impact', title: 'Impact simulator', icon: ArrowDownUp, heading: 'Compare your routines',
+    intro: 'Compare petrol use, travel costs and time spent outdoors.',
+  },
+  {
+    id: 'assistant', title: 'Ask SaansAI', icon: Sparkles, heading: 'Ask SaansAI',
+    intro: 'Ask about your forecast, household plan or indoor air.',
+  },
 ] as const;
-export type Page = typeof pages[number]['id'];
-const headings: Record<Page, string> = {
-  today: 'Your air plan today', planner: 'Plan your day', indoor: 'Make home air cleaner',
-  impact: 'Compare your routines', assistant: 'Ask SaansAI',
-};
-const intros: Record<Page, string> = {
-  today: 'What to do today, with local readings and forecasts to explain why.',
-  planner: 'Build a routine around your household, work and local forecast.',
-  indoor: 'Practical ways to reduce indoor pollution at every budget.',
-  impact: 'Compare petrol use, travel costs and time spent outdoors.',
-  assistant: 'Ask about your forecast, household plan or indoor air.',
-};
-const getPage = () => pages.find(item => '#' + item.id === window.location.hash)?.id ?? 'today';
+
+const getPage = () => pages.find(({ id }) => `#${id}` === window.location.hash) ?? pages[0];
 const hindiSchema = z.boolean();
 
 function App() {
-  const [page, setPage] = useState<Page>(getPage);
+  const [page, setPage] = useState(getPage);
   const [city, setCity] = useStored('saans:city', CITIES[0], citySchema);
   const [profile, setProfile] = useStored('saans:profile', DEFAULT_PROFILE, profileSchema);
   const [hindi, setHindi] = useStored('saans:hindi', false, hindiSchema);
   const [locationOpen, setLocationOpen] = useState(false);
   const { env, error, now, refreshing, slow, reloadData } = useAirReadings(city);
   const cityKey = `${city.lat},${city.lon}`;
-  const currentTitle = pages.find(item => item.id === page)?.title;
 
   useEffect(() => {
     function onHash() {
@@ -95,7 +98,7 @@ function App() {
           </a>
           <nav className="navigation" aria-label="Main navigation">
             {pages.map(({ id, title, icon: Icon }) => (
-              <a key={id} href={`#${id}`} aria-current={id === page ? 'page' : undefined}>
+              <a key={id} href={`#${id}`} aria-current={id === page.id ? 'page' : undefined}>
                 <Icon size={19} />
                 <span>{title}</span>
               </a>
@@ -122,7 +125,7 @@ function App() {
         <div className="workspace">
           <header className="topbar">
             <span className="breadcrumb">
-              <Activity size={17} /> SaansAI <span>/</span> {currentTitle}
+              <Activity size={17} /> SaansAI <span>/</span> {page.title}
             </span>
             <div className="top-actions">
               <button
@@ -148,10 +151,10 @@ function App() {
           <main className="content">
             <div className="page-heading">
               <div>
-                <h1 id="main-title" tabIndex={-1}>{headings[page]}</h1>
-                <p>{intros[page]}</p>
+                <h1 id="main-title" tabIndex={-1}>{page.heading}</h1>
+                <p>{page.intro}</p>
               </div>
-              {page === 'today' && (
+              {page.id === 'today' && (
                 <button className="button refresh" disabled={refreshing} onClick={reloadData}>
                   <RefreshCw size={16} className={refreshing ? 'spin' : ''} /> {refreshing ? 'Updating' : 'Refresh'}
                 </button>
@@ -165,14 +168,14 @@ function App() {
                 </button>
               )}
             </div>
-            {page === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
+            {page.id === 'today' && <AirOverview {...shared} city={city} loading={loading} />}
             <Suspense fallback={<p className="empty" role="status">Opening this section…</p>}>
-              {page === 'planner' && (
+              {page.id === 'planner' && (
                 <Planner {...shared} city={city} setProfile={setProfile} chooseCity={chooseCity} dayKey={dayKey} loading={loading} />
               )}
-              {page === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
-              {page === 'impact' && <Improvement env={env} now={now} />}
-              {page === 'assistant' && <Assistant key={`${cityKey}:${profileKey(profile)}`} city={city} profile={profile} hindi={hindi} env={env} />}
+              {page.id === 'indoor' && <Indoor {...shared} setProfile={setProfile} />}
+              {page.id === 'impact' && <Improvement env={env} now={now} />}
+              {page.id === 'assistant' && <Assistant key={`${cityKey}:${profileKey(profile)}`} city={city} profile={profile} hindi={hindi} env={env} />}
             </Suspense>
             <footer className="footer" id="sources" tabIndex={-1}>
               <div>
@@ -188,7 +191,7 @@ function App() {
             </footer>
           </main>
         </div>
-        {page !== 'assistant' && (
+        {page.id !== 'assistant' && (
           <a className="mobile-ask" href="#assistant">
             <Sparkles size={18} /> Ask SaansAI <ArrowRight size={15} />
           </a>

@@ -45,32 +45,15 @@ export const PROFILES: { name: string; description: string; city: City; profile:
     profile: { ...DEFAULT_PROFILE, work: 'outdoor', commute: 'two-wheeler', workStart: 7, workEnd: 15 } },
 ];
 
-/** Returns a stable string key representing every field of a household profile. */
+const profileFields = profileSchema.keyof().options;
+
+/** Returns a stable string key representing every field of a validated household profile. */
 export function profileKey(profile: Profile): string {
-  return [
-    profile.children,
-    profile.seniors,
-    profile.sensitive,
-    profile.work,
-    profile.commute,
-    profile.workStart,
-    profile.workEnd,
-    profile.activity,
-    profile.budget,
-  ].join(':');
+  return profileFields.map(field => profile[field]).join(':');
 }
 
-/** Checks structural equality between two household profiles. */
 export function sameProfile(a: Profile, b: Profile): boolean {
-  return a.children === b.children
-    && a.seniors === b.seniors
-    && a.sensitive === b.sensitive
-    && a.work === b.work
-    && a.commute === b.commute
-    && a.workStart === b.workStart
-    && a.workEnd === b.workEnd
-    && a.activity === b.activity
-    && a.budget === b.budget;
+  return profileFields.every(field => a[field] === b[field]);
 }
 
 export const airTimestamp = z.number().int().min(1_500_000_000).max(4_100_000_000);

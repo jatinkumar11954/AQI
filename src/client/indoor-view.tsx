@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ArrowRight, Leaf, Wallet, Wind } from 'lucide-react';
 import { type Profile } from '../shared/model';
-import { INDOOR, SUSTAINABLE, ventilation } from '../shared/planner';
+import { INDOOR, SUSTAINABLE } from '../shared/guidance';
+import { ventilation } from '../shared/planner';
 import { ActionText, BUDGET_TIERS, budgetNames, type GuidanceContext } from './action-text';
 import { CardTitle } from './ui';
 

@@ -13,15 +13,17 @@ import {
 } from 'lucide-react';
 import { type City, type Environment, type Profile } from '../shared/model';
 import {
-  dailyActions,
+  commuteAction,
   findWindows,
   formatDate,
   formatTime,
   freshIndiaStation,
-  isSensitive,
   modelNow,
   nearbyParticleCaution,
+  outdoorAction,
+  outdoorAqiCeiling,
   risk,
+  ventilation,
 } from '../shared/planner';
 import { Forecast } from './forecast-card';
 import { formatDateTime, formatNumber } from './format';
@@ -124,7 +126,7 @@ export function CleanerWindow({
   showLink = true,
 }: Omit<Shared, 'hindi'> & { loading?: boolean; showLink?: boolean }) {
   const { lower, usable } = findWindows(env, profile, now);
-  const ceiling = isSensitive(profile) || profile.activity !== 'errands' ? 50 : 100;
+  const ceiling = outdoorAqiCeiling(profile);
   const heading = usable ? 'POSSIBLE TIME' : lower ? 'LOWEST ELIGIBLE FORECAST' : 'NEXT 24 HOURS';
   const summary = loading
     ? 'Checking forecast…'
@@ -186,11 +188,10 @@ function WeatherCard({ env }: { env: Environment }) {
 
 /** Renders the main Today dashboard combining current conditions, cleaner windows, station telemetry, and outlook. */
 export function AirOverview({ env, now, profile, hindi, city, loading }: Shared & { city: City; loading: boolean }) {
-  const actions = dailyActions(env, profile, now);
   const summaryCards = [
-    { action: actions[0], href: '#planner', Icon: CalendarDays },
-    { action: actions[1], href: '#planner', Icon: Wind },
-    { action: actions[3], href: '#indoor', Icon: House },
+    { action: outdoorAction(env, profile, now), href: '#planner', Icon: CalendarDays },
+    { action: commuteAction(profile), href: '#planner', Icon: Wind },
+    { action: ventilation(env, profile, now), href: '#indoor', Icon: House },
   ];
 
   return (
