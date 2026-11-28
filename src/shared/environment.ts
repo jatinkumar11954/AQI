@@ -55,6 +55,7 @@ const relayPayload = z.object({
   })).max(5),
 });
 const searchPayload = z.object({ results: z.array(row).max(20).optional() });
+type SensorSummary = z.infer<typeof locations>['results'][number]['sensors'][number];
 
 function airPoint(time: number, aqi: unknown, pm25: unknown, pm10: unknown): AirPoint {
   return { time, aqi: modeledAqi.safeParse(aqi).data ?? null, pm25: nonnegative(pm25), pm10: nonnegative(pm10) };
@@ -77,7 +78,7 @@ export function parseAir(input: unknown, now: number) {
   return { current: snapshot, hourly: hourlyRows, fetchedAt: now };
 }
 
-function hasPm(parameter: { name: string; units: string }) {
+function hasPm(parameter: SensorSummary['parameter']) {
   return ['pm25', 'pm10'].includes(parameter.name) && ['µg/m³', 'μg/m³', 'ug/m3'].includes(parameter.units);
 }
 
@@ -138,7 +139,6 @@ const STATION_URL = 'https://api.openaq.org/v3/locations';
 const RELAY_URL = 'https://api.dharun.dev/v1/air-quality';
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 
-type SensorSummary = { id: number; parameter: { name: string; units: string } };
 type LatestRecord = z.infer<typeof latest>['results'][number];
 
 type FeedContext = {
@@ -153,17 +153,23 @@ type FeedContext = {
 function findLatestSensorReading(
   sensors: SensorSummary[],
   results: LatestRecord[],
-  name: string,
+  name: 'pm25' | 'pm10',
   now: number,
 ) {
   const ids = new Set(
     sensors.filter(sensor => hasPm(sensor.parameter) && sensor.parameter.name === name).map(sensor => sensor.id),
   );
-  const match = results
-    .filter(record => ids.has(record.sensorsId) && record.value >= 0)
-    .map(record => ({ value: record.value, time: Date.parse(record.datetime.utc) / 1000 }))
-    .filter(record => record.time <= now + 300 && record.time >= now - 48 * HOUR)
-    .sort((a, b) => b.time - a.time)[0];
+  const earliestTime = now - 48 * HOUR;
+  const latestTime = now + 300;
+  let match: { value: number; time: number } | null = null;
+  for (const record of results) {
+    if (!ids.has(record.sensorsId) || record.value < 0) continue;
+    const time = Date.parse(record.datetime.utc) / 1000;
+    if (time >= earliestTime && time <= latestTime && (!match || time > match.time)) {
+      match = { value: record.value, time };
+    }
+  }
+  // Keep timestamp precision through selection and round only for the API response.
   return match ? { ...match, time: Math.floor(match.time) } : null;
 }
 

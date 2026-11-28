@@ -85,6 +85,18 @@ describe('findWindows and nearbyParticleCaution', () => {
     expect(usable!.peak).toBe(48);
   });
 
+  it('chooses the earlier window when equally clean pairs arrive in reverse order', () => {
+    const morning = MIDNIGHT_IST + 7 * HOUR;
+    const evening = MIDNIGHT_IST + 17 * HOUR;
+    const hourly = [evening, evening + HOUR, morning, morning + HOUR].map(time => ({
+      time, aqi: 45, pm25: 18, pm10: 40,
+    }));
+    const env = makeEnv({ air: { current: { ...hourly[0], time: MIDNIGHT_IST }, hourly, fetchedAt: MIDNIGHT_IST } });
+    const expected = { start: morning, end: morning + 2 * HOUR, peak: 45 };
+
+    expect(findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST)).toEqual({ lower: expected, usable: expected });
+  });
+
   it('enforces stricter ceiling (<= 50) for sensitive households and non-errand activity', () => {
     const env = makeEnv();
     const standard = findWindows(env, DEFAULT_PROFILE, MIDNIGHT_IST);

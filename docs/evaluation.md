@@ -60,11 +60,14 @@ On 28 November 2026 IST, the reported Hack2skill Attempt 2 score was **97.12/100
 
 The changes build on `41a7be0`. [Planner rules](../src/shared/planner.ts) expose named actions and the outdoor AQI ceiling used by both the rules and UI. [Shared guidance](../src/shared/guidance.ts) owns the reviewed catalog and checklist order. The assistant selects guidance by topic without constructing the whole checklist. The client uses a single navigation table, and the validation schemas define profile identity and budget tiers. The browser uses one [same-origin API client](../src/client/data.ts), and CI lint checks React hook usage, effect dependencies and warnings.
 
+The planner and OpenAQ adapter select the best match in a single pass, preserving the existing tie rules and timestamp precision. The assistant keeps its ordered fallback topic rules at module scope. [Vercel React Best Practices](https://github.com/vercel-labs/agent-skills/blob/main/skills/react-best-practices/SKILL.md)
+
 | Check | Local result |
 |---|---|
 | TypeScript, lint and builds | Passed strict type checking, zero-warning lint, and the production build. A clean offline `npm ci` passed using the cached packages. |
-| Unit and API tests | 97/97 passed. The nine configured modules reached 100% lines, statements and functions, and 99.79% branches. The client tests cover partial responses, retry limits, cancellation, assistant timeouts and validation. |
+| Unit and API tests | 98/98 passed. The nine configured modules reached 100% lines, statements and functions, and 99.80% branches. Tests cover retry limits, cancellation, partial responses, forecast ties, and sub-second station timestamps. |
 | Behavior comparison with `6528cfb` | 3,360 fixture comparisons matched for planner, checklist, ventilation and assistant outputs across household profiles, air conditions and languages. Twelve API scenarios matched in status, headers and JSON. |
+| Selection comparison with `3dfd5d8` | 640 planner results, 64 station-feed responses, and 22 assistant topic selections matched across fixtures. |
 | Production assets | Vite reported the initial production JavaScript at 109.80 kB gzip versus 111.89 kB at `41a7be0`. The guidance catalog loads with the views that use it. The compiled CSS and HTML Content Security Policy matched `41a7be0` byte-for-byte. |
 | Browser, accessibility and advisory checks | The local browser suite could not start because the workspace denied loopback binding. A current npm advisory check could not reach the registry. The browser and axe results above apply to the earlier release. |
 

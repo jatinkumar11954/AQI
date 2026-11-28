@@ -75,7 +75,7 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
   if (!freshAir(env, now)) return none;
   const ceiling = outdoorAqiCeiling(profile);
   const hours = futureHours(env, now, 24);
-  const candidates: Window[] = [];
+  let lower: Window | null = null;
   const eligible = (point: AirPoint): point is AirPoint & { aqi: number } => {
     const h = localHour(point.time);
     const endHour = localHour(point.time + HOUR - 1);
@@ -86,10 +86,12 @@ export function findWindows(env: Environment, profile: Profile, now: number) {
     const later = hours[index];
     const end = later.time + HOUR;
     if (end > now + 24 * HOUR || later.time - earlier.time !== HOUR || !eligible(earlier) || !eligible(later)) continue;
-    candidates.push({ start: earlier.time, end, peak: Math.max(earlier.aqi, later.aqi) });
+    const peak = Math.max(earlier.aqi, later.aqi);
+    const start = earlier.time;
+    if (!lower || peak < lower.peak || (peak === lower.peak && start < lower.start)) {
+      lower = { start, end, peak };
+    }
   }
-  candidates.sort((a, b) => a.peak - b.peak || a.start - b.start);
-  const lower = candidates[0] ?? null;
   const current = modelNow(env, now)?.aqi;
   // Don't promote an outing during a currently hazardous episode or conflicting monitor readings.
   const usable = lower && lower.peak <= ceiling && current != null && current <= (isSensitive(profile) ? 100 : 150)

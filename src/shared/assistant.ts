@@ -13,19 +13,21 @@ export const TOPICS = ['outdoors', 'commute', 'ventilation', 'cooking', 'filtrat
 export type Topic = typeof TOPICS[number];
 const OVERVIEW_SOURCES: SourceId[] = ['model', 'relay', 'openaq', 'cpcb'];
 
+// The first matching topic wins when a question contains overlapping terms.
+const TOPIC_RULES = [
+  ['ventilation', /ventilat|windows?|air out|खिड़की/i],
+  ['cooking', /cook|kitchen|incense|fry|खाना|धुआँ/i],
+  ['filtration', /hepa|filter|purif|budget|फ़िल्टर|बजट/i],
+  ['commute', /commut|metro|bus|bike|ride|work|सफ़र|मेट्रो/i],
+  ['family', /child|kid|school|senior|elder|family|बच्च|बुज़ुर्ग/i],
+  ['outdoors', /play|walk|run|exercis|outdoor|outside|errand|बाहर|टहल/i],
+  ['impact', /impact|petrol|emission|saving|carbon|बचत/i],
+  ['sources', /aqi|data|measur|source|standard|स्टेशन|आँकड़े|माप/i],
+] as const satisfies readonly (readonly [Topic, RegExp])[];
+
 /** Classifies a free-text user question into a supported assistant topic. */
 export function inferTopic(question: string): Topic {
-  const rules: [Topic, RegExp][] = [
-    ['ventilation', /ventilat|windows?|air out|खिड़की/i],
-    ['cooking', /cook|kitchen|incense|fry|खाना|धुआँ/i],
-    ['filtration', /hepa|filter|purif|budget|फ़िल्टर|बजट/i],
-    ['commute', /commut|metro|bus|bike|ride|work|सफ़र|मेट्रो/i],
-    ['family', /child|kid|school|senior|elder|family|बच्च|बुज़ुर्ग/i],
-    ['outdoors', /play|walk|run|exercis|outdoor|outside|errand|बाहर|टहल/i],
-    ['impact', /impact|petrol|emission|saving|carbon|बचत/i],
-    ['sources', /aqi|data|measur|source|standard|स्टेशन|आँकड़े|माप/i],
-  ];
-  return rules.find(([, expression]) => expression.test(question))?.[0] ?? 'unsupported';
+  return TOPIC_RULES.find(([, expression]) => expression.test(question))?.[0] ?? 'unsupported';
 }
 
 function topicAction(
