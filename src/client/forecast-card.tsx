@@ -119,8 +119,11 @@ export function Forecast({ env, now, loading }: { env: Environment; now: number;
               </div>
             </div>
             <figcaption className="chart-caption">
-              {[hours[0], hours[Math.floor(hours.length / 2)], hours[hours.length - 1]].map((point, index) => (
-                <span key={index}>
+              {(hours.length < 3
+                ? hours
+                : [hours[0], hours[Math.floor(hours.length / 2)], hours[hours.length - 1]]
+              ).map(point => (
+                <span key={point.time}>
                   {formatAxisLabel(
                     point,
                     duration,

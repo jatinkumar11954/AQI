@@ -188,13 +188,19 @@ it('deduplicates simultaneous questions and uses the daily budget for distinct p
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
-it('keeps questions containing email or phone details out of Gemini requests', async () => {
+it('keeps questions containing email, phone, PAN, or address details out of Gemini requests', async () => {
   const fetcher = vi.fn();
   const assistant = createAssistant(fetcher, () => NOW);
-  for (const question of ['Should I open windows? name@example.org', 'My number is +91 98765 43210. Can I walk?']) {
+  for (const question of [
+    'Should I open windows? name@example.org',
+    'My number is +91 98765 43210. Can I walk?',
+    'My PAN is ABCDE1234F, should I wear a mask?',
+    'Is air clean near Flat No. 4B today?',
+  ]) {
     const answer = await assistant(question, DEFAULT_PROFILE, sampleEnv(), 'en', { GEMINI_API_KEY: 'test' });
     expect(answer).toMatchObject({ mode: 'rules', status: 'privacy' });
     expect(answer.text).not.toContain('98765');
+    expect(answer.text).not.toContain('ABCDE1234F');
   }
   expect(fetcher).not.toHaveBeenCalled();
 });
